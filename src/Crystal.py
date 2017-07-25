@@ -1,6 +1,7 @@
 
 import copy
 import random
+import numpy as np
 import matplotlib.pyplot as plt
 from ElectronicSystems import Electron
 
@@ -9,6 +10,8 @@ class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	def __init__(self):
 		self._electrons = list()
+		self._evolutionAvailableElectrons = np.array([])
+		self._evolutionAvailableElectronsSimsteps = np.array([])
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
@@ -18,6 +21,16 @@ class ConductionBand(object):
 	@property
 	def availableElectrons(self):
 		return len(self._electrons)
+
+	#--------------------------------------------------------------------------
+	@property
+	def electronEvolution(self):
+		return self._evolutionAvailableElectrons
+
+	#--------------------------------------------------------------------------
+	def recordNumberOfAvailableElectrons(self, simStep):
+		self._evolutionAvailableElectrons = np.append(self._evolutionAvailableElectrons, self.availableElectrons)
+		self._evolutionAvailableElectronsSimsteps = np.append(self._evolutionAvailableElectrons, simStep)
 
 	#--------------------------------------------------------------------------
 	def shuffleElectrons(self):
@@ -69,8 +82,8 @@ class ValenceBand(object):
 		return Electron(x=x, travelRange=travelRange)
 
 	#--------------------------------------------------------------------------
-	def recordEvolution(self, simumationStep):
-		self._evolutionTime.append(simumationStep)
+	def recordEvolution(self, simulationStep):
+		self._evolutionTime.append(simulationStep)
 		self._evolutionDonatedElectrons.append(self.donatedElectronCount)
 
 	#--------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import numpy as np
 import random
 random.seed()
 import copy
+import sys
 
 import threading
 
@@ -36,8 +37,8 @@ class SolidStateStedSimulator(threading.Thread):
 		self.stedBeam = StedBeam(x=0.0, amplitude=0.01,  wavelength=600E-9, numAperture=1.3)
 
 		electronTrapXPosition = np.linspace(self.centerElectronTraps-self.spanElectronTraps/2.0,
-												 self.centerElectronTraps+self.spanElectronTraps/2.0,
-												 self.numberOfElectronTraps)
+											self.centerElectronTraps+self.spanElectronTraps/2.0,
+											self.numberOfElectronTraps)
 
 		# set up electron traps
 		self.electronTraps = [ElectronTrap(x=electronTrapXPosition[i]) for i in range(self.numberOfElectronTraps)]
@@ -73,43 +74,44 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def run(self):
-		self.setupSimulation()
-
-		for simStep in range(self.numberOfSimulationSteps):
-			if simStep % 100000 == 0:
+		for simStep in xrange(self.numberOfSimulationSteps):
+			if simStep % int(0.05*self.numberOfSimulationSteps) == 0:
+				sys.stdout.write("\r%.0f %%"%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
 				random.seed()
-				print "\r%.1f %%"%(float(simStep)/float(self.numberOfSimulationSteps)*100.0)
+				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 95:
+					print ""
 
 			random.shuffle(self.electronTraps)
 
 			for element in self.electronTraps:
 				randomNumber = random.random()
 
+				# handle rare earth
 				if type(element) is RareEarth:
 					if randomNumber <= element.probabilityDecay:
 						element.decay()
 
-					elif randomNumber > element.probabilityDecay and randomNumber <= element.probabilityPumpIonize:
+					#elif randomNumber <= element.probabilityPumpIonize:
+					#	self.cb.absorbElectron(element.ionize())
+
+					elif randomNumber <= element.probabilityStedIonize:
 						self.cb.absorbElectron(element.ionize())
 
-					elif randomNumber > element.probabilityPumpIonize and randomNumber <= element.probabilityStedIonize:
-						self.cb.absorbElectron(element.ionize())
-
-					elif randomNumber > element.probabilityStedIonize and randomNumber <= element.probabilityPumpExcite:
+					elif randomNumber <= element.probabilityPumpExcite:
 						element.excite()
 
-					elif randomNumber > element.probabilityPumpExcite and randomNumber <= element.probabilityPumpRestore:
+					elif randomNumber <= element.probabilityPumpRestore:
 						if not element.isPopulated:
 							element.restore(self.vb.donateElectron(element.x, self.electronTravelRange))
 							self.vb.recordEvolution(simStep)
 
-					elif randomNumber > element.probabilityPumpRestore and randomNumber <= element.probabilityStedDeplete:
+					elif randomNumber <= element.probabilityStedDeplete:
 						element.deplete()
 
 					else:
 						pass
-						
 
+				# handle electron traps
 				elif type(element) is ElectronTrap:
 					if randomNumber <= element.probabilityStedIonize:
 						self.cb.absorbElectron(element.ionize())
@@ -124,9 +126,14 @@ class SolidStateStedSimulator(threading.Thread):
 			# recombination part
 			#==========================================================================
 
+			# record how many electrons are in the CB every 1000 simulation steps
+			if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
+				self.cb.recordNumberOfAvailableElectrons(simStep)
+
 			# now go through the conduction band's collected electrons and
 			# find the ones which can recombine to either an electron trap
 			# or to a rare earth.
+			
 			self.cb.shuffleElectrons()
 			while self.cb.availableElectrons != 0:
 				# get electron from shuffled list
@@ -144,10 +151,7 @@ class SolidStateStedSimulator(threading.Thread):
 		#==========================================================================
 
 		# sort electronic systems by x-position
-		self.electronTraps.sort(key=lambda element: element.x, reverse=True)
-
-		# plot the results
-		#self.visualize()
+		self.electronTraps.sort(key=lambda element: element.x)
 
 	#--------------------------------------------------------------------------
 	def visualize(self):
