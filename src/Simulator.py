@@ -14,13 +14,16 @@ import threading
 
 class SolidStateStedSimulator(threading.Thread):
 	#--------------------------------------------------------------------------
-	def __init__(self, nSimSteps=2E6, nET=300, eTR=25E-9, posRE=0.0, centerET=0.0, spanET=2E-6):
+	def __init__(self, nSimSteps=2E6, nET=300, eTR=25E-9, posRE=0.0, centerET=0.0, spanET=2E-6,
+					   pumpAmpl=0.0, stedAmpl=0.0):
 		self.numberOfSimulationSteps = int(nSimSteps)
 		self.numberOfElectronTraps = nET
 		self.electronTravelRange = eTR
 		self.centerElectronTraps = centerET
 		self.spanElectronTraps = spanET
 		self.positionOfRareEarthCenter = posRE
+		self.pumpAmplitude = pumpAmpl
+		self.stedAmplitude = stedAmpl
 
 		self.visualizer = Visualizer()
 
@@ -33,8 +36,8 @@ class SolidStateStedSimulator(threading.Thread):
 		self.vb = ValenceBand()
 
 		# set up pump and sted beam
-		self.pumpBeam = PumpBeam(x=0.0, amplitude=0.005, wavelength=470E-9, numAperture=1.3)
-		self.stedBeam = StedBeam(x=0.0, amplitude=0.01,  wavelength=600E-9, numAperture=1.3)
+		self.pumpBeam = PumpBeam(x=0.0, amplitude=self.pumpAmplitude, wavelength=470E-9, numAperture=1.3)
+		self.stedBeam = StedBeam(x=0.0, amplitude=self.stedAmplitude,  wavelength=600E-9, numAperture=1.3)
 
 		electronTrapXPosition = np.linspace(self.centerElectronTraps-self.spanElectronTraps/2.0,
 											self.centerElectronTraps+self.spanElectronTraps/2.0,
@@ -74,6 +77,9 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def run(self):
+
+		print "started"
+
 		for simStep in xrange(self.numberOfSimulationSteps):
 			if simStep % int(0.05*self.numberOfSimulationSteps) == 0:
 				sys.stdout.write("\r%.0f %%"%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
@@ -153,6 +159,8 @@ class SolidStateStedSimulator(threading.Thread):
 		# sort electronic systems by x-position
 		self.electronTraps.sort(key=lambda element: element.x)
 
+
+		print "finished"
 	#--------------------------------------------------------------------------
 	def visualize(self):
 		# plot electron distribution
