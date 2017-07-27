@@ -71,7 +71,7 @@ class SolidStateStedSimulator(threading.Thread):
 				randomNumber = random.random()
 
 				if self.electronSystems.isRareEarth(index):
-					print "processing RE"
+					#print "processing RE"
 					result = self.electronSystems.actOnRareEarth(randomNumber)
 
 					if result == 1:
@@ -83,7 +83,7 @@ class SolidStateStedSimulator(threading.Thread):
 						self.vb.donateElectron()
 
 				else:
-					print "processing ET"
+					#print "processing ET"
 					result = self.electronSystems.actOnElectronTrap(index, randomNumber)
 
 					if result == 1:
@@ -101,12 +101,20 @@ class SolidStateStedSimulator(threading.Thread):
 			# now go through the conduction band's collected electrons and
 			# find the ones which can recombine to either an electron trap
 			# or to a rare earth.
-			availableElectronIndices = np.random.shuffle(self.cb.availableElectrons)
-			if availableElectronIndices:
-				for electronPosition, eIndex in self.cb.getElectronPosition(availableElectronIndices), availableElectronIndices:
+			
+			#print "numEinCB:", self.cb.numberAvailableElectrons
+
+			if self.cb.numberAvailableElectrons > 0:
+				#print "start recombination"
+				self.electronIndices = self.cb.availableElectronIndices
+				np.random.shuffle(self.electronIndices)
+				# take all available electrons in conduction band
+				for electronPosition, eIndex in zip(self.cb.getElectronPosition(self.electronIndices), self.electronIndices):
 					# search for an electron trap/RE which is within the electrons
 					# travel range and where it can recombine if the trap/RE is currently ionized
-					for esIndex in np.where(self.electronSystems.isPopulated == False)[0]:
+					self.possibleRecombinationSlots = np.where(self.electronSystems.population == False)[0]
+					np.random.shuffle(self.possibleRecombinationSlots)
+					for esIndex in self.possibleRecombinationSlots:
 						esPos = self.electronSystems.getPosition(esIndex)
 						if np.abs(esPos - electronPosition) <= self.electronTravelRange:
 							self.cb.donateElectron(eIndex)

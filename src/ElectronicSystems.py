@@ -62,11 +62,11 @@ class ElectronicSystem(object):
 		self._probDecayRE   /= maxTotProbRE
 		self._probDepleteRE /= maxTotProbRE
 
-		self._probExciteRE  = self._probExciteRE[self._rareEarthIndex]
-		self._probIonizeRE  = self._probIonizeRE[self._rareEarthIndex]
-		self._probRepumpRE  = self._probRepumpRE[self._rareEarthIndex]
 		self._probDecayRE   = self._probDecayRE[self._rareEarthIndex]
-		self._probDepleteRE = self._probDepleteRE[self._rareEarthIndex]
+		self._probIonizeRE  = self._probDecayRE + self._probIonizeRE[self._rareEarthIndex]
+		self._probExciteRE  = self._probIonizeRE + self._probExciteRE[self._rareEarthIndex]
+		self._probRepumpRE  = self._probExciteRE + self._probRepumpRE[self._rareEarthIndex]
+		self._probDepleteRE = self._probRepumpRE + self._probDepleteRE[self._rareEarthIndex]
 
 		self._normProbability = self._probIonizeET
 		self._normProbability[self._rareEarthIndex] = totProbRE[self._rareEarthIndex]
@@ -79,6 +79,11 @@ class ElectronicSystem(object):
 	@x.setter
 	def x(self, value):
 		self._xPos = value
+
+	#--------------------------------------------------------------------------
+	@property
+	def population(self):
+		return self._isPopulated
 
 	#--------------------------------------------------------------------------
 	@property
@@ -111,21 +116,39 @@ class ElectronicSystem(object):
 		if self.reState == self._states['ionized']:
 			self._isPopulated[self._rareEarthIndex] = True
 			self.reState = self._states['ground']
-		return 2
+			#print "restored"
+			return 2
+		else:
+			#print "cannot restore RE, not in ionized state"
+			return 0		
 
 	#--------------------------------------------------------------------------
 	def excite(self):
 		if self.reState == self._states['ground']:
 			self.reState = self._states['excited']
+			#print "excited"
+		else:
+			#print "cannot excite RE, not in ground state"
+			pass
+	
 		return 0
 
 	#--------------------------------------------------------------------------
 	def ionize(self, idx):
 		if self.isPopulated(idx):
-			self._isPopulated[idx] = False
-			if self.isRareEarth(idx) and self.reState == self._states['excited']:
-				self.reState = self._states['ionized']
-			return 1
+			if self.isRareEarth(idx):
+				if self.reState == self._states['excited']:
+					self.reState = self._states['ionized']
+					self._isPopulated[idx] = False
+					#print "ionized RE"
+					return 1
+				else:
+					#print "cannot ionize RE, not in excited state"
+					return 0
+			else:
+				self._isPopulated[idx] = False
+				#print "ionized ET"
+				return 1
 
 		else:
 			return 0
@@ -133,7 +156,12 @@ class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
 	def decay(self):
 		if self.reState == self._states['excited']:
+			#print "decay/depleted"
 			self.reState = self._states['ground']
+		else:
+			#print "cannot decay RE, not in excited state"
+			pass
+			
 		return 0
 
 	#--------------------------------------------------------------------------
@@ -142,17 +170,19 @@ class ElectronicSystem(object):
 
 	#--------------------------------------------------------------------------
 	def recombine(self, idx):
-		if not self._isPopulated[idx]:
+		if not self.isPopulated(idx):
 			self._isPopulated[idx] = True
+			#print "recombined ET"
 
 			if self.isRareEarth(idx):
 				self.reState = self._states['excited']
+				#print "recombined RE"
 
 			return 0
 
 	#--------------------------------------------------------------------------
 	def actOnElectronTrap(self, idx, probability):
-		if probability < self._normProbability[idx]:
+		if probability <= self._normProbability[idx]:
 			return self.ionize(idx)
 
 		else:
@@ -160,27 +190,26 @@ class ElectronicSystem(object):
 
 	#--------------------------------------------------------------------------
 	def actOnRareEarth(self, probability):
-		print probability
+		#print probability
 		if probability <= self._probDecayRE:
-			print "will decay"
+			#print "try to decay"
 			return self.decay()
 
 		elif probability <= self._probIonizeRE:
-			print "will ionize"
+			#print "try to ionize"
 			return self.ionize(self._rareEarthIndex)
 
 		elif probability <= self._probExciteRE:
-			print "will excite"
+			#print "try to excite"
 			return self.excite()
 
 		elif probability <= self._probRepumpRE:
-			print "will repump"
+			#print "try to repump"
 			return self.restore()
 
 		elif probability <= self._probDepleteRE:
-			print "will deplete"
+			#print "try to deplete"
 			return self.deplete()
 
 		else:
-			print "did nothing"
-			pass
+			return 0

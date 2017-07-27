@@ -18,9 +18,14 @@ class ConductionBand(object):
 
 	#--------------------------------------------------------------------------
 	@property
-	def availableElectrons(self):
+	def availableElectronIndices(self):
 		"""Returns array of indices for populated electron positions"""
-		return np.nonzero(self._isPopulated)
+		return np.nonzero(self._isPopulated)[0]
+
+	#--------------------------------------------------------------------------
+	@property
+	def numberAvailableElectrons(self):
+		return self._availableElectrons
 
 	#--------------------------------------------------------------------------
 	def getElectronPosition(self, idx):
@@ -30,6 +35,7 @@ class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	def absorbElectron(self, idx):
 		"""Absorbs an electron from an electron trap or a rare earth."""
+		#print "absorbed electron at", idx
 		self._isPopulated[idx] = True
 		self._availableElectrons += 1
 
