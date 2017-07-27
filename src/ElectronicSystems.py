@@ -1,267 +1,186 @@
 
 import copy
+import numpy as np
 
 #==============================================================================
-class Electron(object):
+class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
-	def __init__(self, x=0.0, travelRange=25E-9):
-		self._xPos = x
-		self._travelRange = travelRange
+	def __init__(self, N, REidx, xPos, pumpBeam, stedBeam):
+		"""creates N electronic systems. RE must be specified separately in here"""
 
-	#--------------------------------------------------------------------------
-	def __del__(self):
-		pass
+		self._pumpBeam = pumpBeam
+		self._stedBeam = stedBeam
 
-	#--------------------------------------------------------------------------
-	@property
-	def x(self):
-		return self._xPos
+		self._numberElements = N
+		self._rareEarthIndex = REidx
+		self._isPopulated = np.zeros(self._numberElements, dtype=bool)
+		self._isRareEarth = np.zeros(self._numberElements, dtype=bool)
 
-	@x.setter
-	def x(self, value):
-		self._xPos = value
+		self.x = np.array(xPos) # setting up x positions of all elements
 
-	#--------------------------------------------------------------------------
-	@property
-	def travelRange(self):
-		return self._travelRange
-
-	@travelRange.setter
-	def travelRange(self, value):
-		self._travelRange = value
-
-#==============================================================================
-class ElectronicSystemBase(object):
-	#--------------------------------------------------------------------------
-	def __init__(self, x=0.0):
-		self._xPos = x
-		self._localLaserPower = 0.0
-		self._localPumpPower  = 0.0
-		self._localStedPower  = 0.0
-
-	#--------------------------------------------------------------------------
-	def __del__(self):
-		pass
-
-	#--------------------------------------------------------------------------
-	@property
-	def isPopulated(self):
-		return hasattr(self, '_electron')
-
-	#--------------------------------------------------------------------------
-	@property
-	def x(self):
-		return self._xPos
-
-	@x.setter
-	def x(self, value):
-		self._xPos = value
-
-	#--------------------------------------------------------------------------
-	# represents the total local laser power (pump + sted)
-	@property
-	def localLaserPower(self):
-		return self._localLaserPower
-
-	#--------------------------------------------------------------------------
-	# represents the total power of the sted beam
-	@property
-	def localStedPower(self):
-		return self._localStedPower
-
-	@localStedPower.setter
-	def localStedPower(self, value):
-		self._localStedPower = value
-		self._localLaserPower = self.localPumpPower + value
-
-	#--------------------------------------------------------------------------
-	# represents the total power of the pump beam
-	@property
-	def localPumpPower(self):
-		return self._localPumpPower
-
-	@localPumpPower.setter
-	def localPumpPower(self, value):
-		self._localPumpPower = value
-		self._localLaserPower = self.localStedPower + value
-
-	#--------------------------------------------------------------------------
-	# represents the probability of getting ionized by the STED beam
-	@property
-	def probabilityStedIonize(self):
-		return self._probStedIonize
-
-	@probabilityStedIonize.setter
-	def probabilityStedIonize(self, value):
-		self._probStedIonize = value
-
-	#--------------------------------------------------------------------------
-	# represents the probability of getting ionized by the pump beam
-	@property
-	def probabilityPumpIonize(self):
-		return self._probPumpIonize
-
-	@probabilityPumpIonize.setter
-	def probabilityPumpIonize(self, value):
-		self._probPumpIonize = value
-
-	#--------------------------------------------------------------------------
-	# represents the probability to recombine with an electron from the
-	# conduction band
-	@property
-	def probabilityRecombine(self):
-		return self._probRecombine
-
-	@probabilityRecombine.setter
-	def probabilityRecombine(self, value):
-		self._probRecombine = value
-
-
-#==============================================================================
-class ElectronTrap(ElectronicSystemBase):
-	#--------------------------------------------------------------------------
-	def __init__(self, x=0.0):
-		ElectronicSystemBase.__init__(self, x=x)
-
-	#--------------------------------------------------------------------------
-	def ionize(self):
-		"""Check if electron is present. Returns the present electron
-		   and deletes it afterwards locally (here in the electron trap)."""
-		if self.isPopulated:
-			tmp = self._electron # former deepcopy
-			del self._electron
-			return tmp
-		else:
-			return None
-
-	#--------------------------------------------------------------------------
-	def recombine(self, electron):
-		"""Takes an electron from the conduction band to get populated."""
-		self._electron = electron # former deepcopy
-		self._electron.x = self.x
-
-	#--------------------------------------------------------------------------
-	def __str__(self):
-		return "electron trap"
-
-
-#==============================================================================
-class RareEarth(ElectronicSystemBase):
-	#--------------------------------------------------------------------------
-	def __init__(self, x=0.0, electronTravelRange=25E-9):
-		ElectronicSystemBase.__init__(self, x)
-
+		# init the rare earth in the electronic systems
 		self._states = dict()
-		self._states['ground'] = 1
+		self._states['ground']  = 1
 		self._states['excited'] = 2
 		self._states['ionized'] = 3
 
-		self._electron = Electron(x=self.x, travelRange=electronTravelRange)
-		self.state = self._states['ground']
-
-		#self.probabilityDecay = 0.01
+		self._isRareEarth[REidx] = True
+		self._isPopulated[REidx] = True
+		self._reState = self._states['ground']
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
 		pass
 
 	#--------------------------------------------------------------------------
-	@property
-	def state(self):
-		return self._state
+	def setupTransitionProbabilities(self, gamma, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE):
+		pumpIntensity = self._pumpBeam.profile(self.x)
+		stedIntensity = self._stedBeam.profile(self.x)
 
-	@state.setter
-	def state(self, value):
-		self._state = value
+		# for electron traps
+		self._probIonizeET = pumpIntensity + stedIntensity
+		self._probIonizeET /= np.max(self._probIonizeET)
 
-	#--------------------------------------------------------------------------
-	# represents the probability of the RE's excited state to decay to
-	# it's ground state
-	@property
-	def probabilityDecay(self):
-		return self._probDecay
+		# for rare earth
+		self._probExciteRE  = pumpIntensity * sigPumpRE
+		self._probIonizeRE  = (pumpIntensity + stedIntensity) * sigIonizeRE
+		self._probRepumpRE  = pumpIntensity * sigRepumpRE
+		self._probDecayRE   = np.array([gamma for i in range(self._numberElements)])
+		self._probDepleteRE = stedIntensity * sigStedRE
 
-	@probabilityDecay.setter
-	def probabilityDecay(self, value):
-		self._probDecay = value
+		totProbRE = self._probExciteRE		\
+		            + self._probIonizeRE	\
+		            + self._probRepumpRE	\
+		            + self._probDecayRE		\
+		            + self._probDepleteRE
 
-	#--------------------------------------------------------------------------
-	# represents the probability of the rare earth to get to excited state
-	# by the pump beam
-	@property
-	def probabilityPumpExcite(self):
-		return self._probPumpExcite
+		maxTotProbRE = np.max(totProbRE)
+		totProbRE /= maxTotProbRE
+		self._probExciteRE  /= maxTotProbRE
+		self._probIonizeRE  /= maxTotProbRE
+		self._probRepumpRE  /= maxTotProbRE
+		self._probDecayRE   /= maxTotProbRE
+		self._probDepleteRE /= maxTotProbRE
 
-	@probabilityPumpExcite.setter
-	def probabilityPumpExcite(self, value):
-		self._probPumpExcite = value
+		self._probExciteRE  = self._probExciteRE[self._rareEarthIndex]
+		self._probIonizeRE  = self._probIonizeRE[self._rareEarthIndex]
+		self._probRepumpRE  = self._probRepumpRE[self._rareEarthIndex]
+		self._probDecayRE   = self._probDecayRE[self._rareEarthIndex]
+		self._probDepleteRE = self._probDepleteRE[self._rareEarthIndex]
 
-	#--------------------------------------------------------------------------
-	# represents the probability of the rare earth to get depleted by the
-	# STED beam
-	@property
-	def probabilityStedDeplete(self):
-		return self._probStedDeplete
-
-	@probabilityStedDeplete.setter
-	def probabilityStedDeplete(self, value):
-		self._probStedDeplete = value
+		self._normProbability = self._probIonizeET
+		self._normProbability[self._rareEarthIndex] = totProbRE[self._rareEarthIndex]
 
 	#--------------------------------------------------------------------------
-	# represents the probability of the rare earth to get restored with an
-	# electron from the valence band to it's ground state with the pump beam.
 	@property
-	def probabilityPumpRestore(self):
-		return self._probPumpRestore
+	def x(self):
+		return self._xPos
 
-	@probabilityPumpRestore.setter
-	def probabilityPumpRestore(self, value):
-		self._probPumpRestore = value
+	@x.setter
+	def x(self, value):
+		self._xPos = value
+
+	#--------------------------------------------------------------------------
+	@property
+	def N(self):
+		return self._numberElements
+
+	#--------------------------------------------------------------------------
+	@property
+	def reState(self):
+		return self._reState
+
+	@reState.setter
+	def reState(self, value):
+		self._reState = value
+
+	#--------------------------------------------------------------------------
+	def getPosition(self, idx):
+		return self._xPos[idx]
+
+	#--------------------------------------------------------------------------
+	def isPopulated(self, idx):
+		return self._isPopulated[idx]
+
+	#--------------------------------------------------------------------------
+	def isRareEarth(self, idx):
+		return self._isRareEarth[idx]
+
+	#--------------------------------------------------------------------------
+	def restore(self):
+		if self.reState == self._states['ionized']:
+			self._isPopulated[self._rareEarthIndex] = True
+			self.reState = self._states['ground']
+		return 2
 
 	#--------------------------------------------------------------------------
 	def excite(self):
-		"""Transition from ground state to excited state."""
-		if self.isPopulated and self.state == self._states['ground']:
-			self.state = self._states['excited']
+		if self.reState == self._states['ground']:
+			self.reState = self._states['excited']
+		return 0
 
 	#--------------------------------------------------------------------------
-	def ionize(self):
-		if self.state == self._states['excited']:
-			tmp = self._electron # former deepcopy
-			del self._electron
-			self.state = self._states['ionized']
-			return tmp
+	def ionize(self, idx):
+		if self.isPopulated(idx):
+			self._isPopulated[idx] = False
+			if self.isRareEarth(idx) and self.reState == self._states['excited']:
+				self.reState = self._states['ionized']
+			return 1
+
 		else:
-			return None
-
-	#--------------------------------------------------------------------------
-	def recombine(self, electron):
-		"""Recombine with an electron from the conduction band, which
-		   will end up in excited state."""
-		self._electron = electron # former deepcopy
-		self._electron.x = self.x
-		self.state = self._states['excited']
-
-	#--------------------------------------------------------------------------
-	def restore(self, electron):
-		"""Recombine with an electron from the valence band, which
-		   will end up in ground state."""
-		if not self.isPopulated:
-			self._electron = electron # former deepcopy
-			self._electron.x = self.x
-			self.state = self._states['ground']
-		else:
-			pass
+			return 0
 
 	#--------------------------------------------------------------------------
 	def decay(self):
-		if self.state == self._states['excited']:
-			self.state = self._states['ground']
+		if self.reState == self._states['excited']:
+			self.reState = self._states['ground']
+		return 0
 
 	#--------------------------------------------------------------------------
 	def deplete(self):
-		self.decay()
-		
+		return self.decay()
+
 	#--------------------------------------------------------------------------
-	def __str__(self):
-		return "rare earth"
+	def recombine(self, idx):
+		if not self._isPopulated[idx]:
+			self._isPopulated[idx] = True
+
+			if self.isRareEarth(idx):
+				self.reState = self._states['excited']
+
+			return 0
+
+	#--------------------------------------------------------------------------
+	def actOnElectronTrap(self, idx, probability):
+		if probability < self._normProbability[idx]:
+			return self.ionize(idx)
+
+		else:
+			return 0
+
+	#--------------------------------------------------------------------------
+	def actOnRareEarth(self, probability):
+		print probability
+		if probability <= self._probDecayRE:
+			print "will decay"
+			return self.decay()
+
+		elif probability <= self._probIonizeRE:
+			print "will ionize"
+			return self.ionize(self._rareEarthIndex)
+
+		elif probability <= self._probExciteRE:
+			print "will excite"
+			return self.excite()
+
+		elif probability <= self._probRepumpRE:
+			print "will repump"
+			return self.restore()
+
+		elif probability <= self._probDepleteRE:
+			print "will deplete"
+			return self.deplete()
+
+		else:
+			print "did nothing"
+			pass

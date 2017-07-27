@@ -17,21 +17,17 @@ class Visualizer(object):
 	#--------------------------------------------------------------------------
 	def visualize(self, pumpBeam, stedBeam, electronicSystems):
 
-		electronicSystemXPositions = list()
-		for es in electronicSystems:
-			electronicSystemXPositions.append(es.x)
+		esXPos = electronicSystems.x
 
-		electronicSystemXPositions = np.array(electronicSystemXPositions)
+		a=pumpBeam.profile(esXPos)
+		b=stedBeam.profile(esXPos)
+		plt.plot(esXPos/1.0E-6, a)
+		plt.plot(esXPos/1.0E-6, b)
 
-		a=pumpBeam.profile(electronicSystemXPositions)
-		b=stedBeam.profile(electronicSystemXPositions)
-		plt.plot(electronicSystemXPositions/1.0E-6, a)
-		plt.plot(electronicSystemXPositions/1.0E-6, b)
-
-		for es in electronicSystems:
-			plt.plot(es.x/1.0E-6, 0.0009, 'ro')
-			if es.isPopulated:
-				plt.plot(es.x/1.0E-6, 0.001, 'g^')
+		for idx in range(electronicSystems.N):
+			plt.plot(esXPos[idx]/1.0E-6, 0.0009, 'ro')		
+			if electronicSystems.isPopulated(idx):
+				plt.plot(esXPos[idx]/1.0E-6, 0.001, 'g^')
 
 		plt.show()
 		
