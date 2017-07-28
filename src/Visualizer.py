@@ -15,7 +15,7 @@ class Visualizer(object):
 		pass
 
 	#--------------------------------------------------------------------------
-	def visualize(self, pumpBeam, stedBeam, electronicSystems):
+	def visualize(self, pumpBeam, stedBeam, electronicSystems, reIndex):
 
 		esXPos = electronicSystems.x
 
@@ -25,7 +25,11 @@ class Visualizer(object):
 		plt.plot(esXPos/1.0E-6, b)
 
 		for idx in range(electronicSystems.N):
-			plt.plot(esXPos[idx]/1.0E-6, 0.001, 'ro')		
+			if idx == reIndex:
+				plt.plot(esXPos[idx]/1.0E-6, 0.001, 'bo')
+			else:
+				plt.plot(esXPos[idx]/1.0E-6, 0.001, 'ro')
+				
 			if electronicSystems.isPopulated(idx):
 				plt.plot(esXPos[idx]/1.0E-6, 0.002, 'g^')
 

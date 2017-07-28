@@ -4,7 +4,7 @@ import timeit
 
 from Simulator import SolidStateStedSimulator
 
-s = SolidStateStedSimulator(nSimSteps=1E6, nET=300, eTR=41E-9, posRE=0, centerET=0.0, spanET=3E-6)
+s = SolidStateStedSimulator(nSimSteps=1E4, nET=300, eTR=41E-9, posRE=-11, centerET=0.0, spanET=3E-6)
 
 s.setupSimulation()
 

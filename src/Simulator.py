@@ -120,7 +120,7 @@ class SolidStateStedSimulator(threading.Thread):
 		print "donated from VB:", self.vb.donatedElectronCount
 
 		# plot electron distribution
-		self.visualizer.visualize(self.pumpBeam, self.stedBeam, self.electronSystems)
+		self.visualizer.visualize(self.pumpBeam, self.stedBeam, self.electronSystems, self.electronSystems._rareEarthIndex)
 
 		# plot VB electron donation saturation
 		self.vb.plotElectronEvolution()

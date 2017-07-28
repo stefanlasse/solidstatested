@@ -28,6 +28,9 @@ class ElectronicSystem(object):
 		self._isPopulated[REidx] = True
 		self._reState = self._states['ground']
 
+		self._reGroundStateCounter  = 1
+		self._reExcitedStateCounter = 0
+
 	#--------------------------------------------------------------------------
 	def __del__(self):
 		pass
@@ -100,6 +103,16 @@ class ElectronicSystem(object):
 		self._reState = value
 
 	#--------------------------------------------------------------------------
+	@property
+	def rareEarthGroundStateCounter(self):
+		return self._reGroundStateCounter
+
+	#--------------------------------------------------------------------------
+	@property
+	def rareEarthExcitedStateCounter(self):
+		return self._reExcitedStateCounter
+
+	#--------------------------------------------------------------------------
 	def getPosition(self, idx):
 		return self._xPos[idx]
 
@@ -126,6 +139,7 @@ class ElectronicSystem(object):
 	def excite(self):
 		if self.reState == self._states['ground']:
 			self.reState = self._states['excited']
+			self._reExcitedStateCounter += 1
 			#print "excited"
 		else:
 			#print "cannot excite RE, not in ground state"
@@ -158,6 +172,7 @@ class ElectronicSystem(object):
 		if self.reState == self._states['excited']:
 			#print "decay/depleted"
 			self.reState = self._states['ground']
+			self._reGroundStateCounter += 1
 		else:
 			#print "cannot decay RE, not in excited state"
 			pass
