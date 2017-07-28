@@ -25,7 +25,7 @@ class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	@property
 	def numberAvailableElectrons(self):
-		return self._availableElectrons
+		return np.sum(self._isPopulated)
 
 	#--------------------------------------------------------------------------
 	def getElectronPosition(self, idx):
@@ -35,17 +35,14 @@ class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	def absorbElectron(self, idx):
 		"""Absorbs an electron from an electron trap or a rare earth."""
-		#print "absorbed electron at", idx
 		self._isPopulated[idx] = True
-		self._availableElectrons += 1
-
+		
 	#--------------------------------------------------------------------------
 	def donateElectron(self, idx):
 		"""Releases a certain electron from the CB to an electron trap
 		   or to a rare earth."""
 		self._isPopulated[idx] = False
-		self._availableElectrons -= 1
-
+		
 	#--------------------------------------------------------------------------
 	def recordNumberOfAvailableElectrons(self, simstep):
 		pass

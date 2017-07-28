@@ -161,7 +161,7 @@ class ElectronicSystem(object):
 		else:
 			#print "cannot decay RE, not in excited state"
 			pass
-			
+
 		return 0
 
 	#--------------------------------------------------------------------------
