@@ -1,5 +1,5 @@
 
-import copy
+from Utility import EvolutionRecorder
 import numpy as np
 
 #==============================================================================
@@ -28,8 +28,12 @@ class ElectronicSystem(object):
 		self._isPopulated[REidx] = True
 		self._reState = self._states['ground']
 
-		self._reGroundStateCounter  = 1
+		# some measures
+		self._reGroundStateCounter  = 0
 		self._reExcitedStateCounter = 0
+
+		self.groundStateEvolution = EvolutionRecorder('ground state', 'sim step', 'N')
+		self.excitedStateEvolution = EvolutionRecorder('excited state', 'sim step', 'N')
 
 	#--------------------------------------------------------------------------
 	def __del__(self):

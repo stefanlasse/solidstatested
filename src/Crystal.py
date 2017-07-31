@@ -1,4 +1,5 @@
 
+from Utility import EvolutionRecorder
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,7 +56,7 @@ class ValenceBand(object):
 	def __init__(self):
 		self._donatedElectronCount = 0
 		self._evolutionTime = list()
-		self._evolutionDonatedElectrons = list()
+		self.evolutionDonatedElectrons = EvolutionRecorder('donated VB electrons', 'sim step', 'N')
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
@@ -71,9 +72,9 @@ class ValenceBand(object):
 		self._donatedElectronCount += 1
 
 	#--------------------------------------------------------------------------
-	def recordEvolution(self, simulationStep):
-		self._evolutionTime.append(simulationStep)
-		self._evolutionDonatedElectrons.append(self.donatedElectronCount)
+	#def recordEvolution(self, simulationStep):
+	#	self._evolutionTime.append(simulationStep)
+	#	self._evolutionDonatedElectrons.append(self.donatedElectronCount)
 
 	#--------------------------------------------------------------------------
 	def plotElectronEvolution(self):

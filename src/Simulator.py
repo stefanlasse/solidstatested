@@ -5,7 +5,7 @@ from LaserProfiles import PumpBeam, StedBeam
 from Visualizer import Visualizer
 
 import numpy as np
-import random
+#import random
 import copy
 import sys
 
@@ -28,7 +28,7 @@ class SolidStateStedSimulator(threading.Thread):
 	#--------------------------------------------------------------------------
 	def setupSimulation(self):
 
-		random.seed()
+		np.random.seed()
 
 		electronTrapXPosition = np.linspace(self.centerElectronTraps-self.spanElectronTraps/2.0,
 											self.centerElectronTraps+self.spanElectronTraps/2.0,
@@ -42,12 +42,12 @@ class SolidStateStedSimulator(threading.Thread):
 
 		# set up pump and sted beam
 		self.pumpBeam = PumpBeam(x=0.0, amplitude=0.005, wavelength=470E-9, numAperture=1.3)
-		self.stedBeam = StedBeam(x=0.0, amplitude=0.03,  wavelength=600E-9, numAperture=1.3)
+		self.stedBeam = StedBeam(x=0.0, amplitude=0.0,  wavelength=600E-9, numAperture=1.3)
 
 		# set up electronic systems
-		self.electronSystems = ElectronicSystem(N = int(self.numberOfElectronTraps + 1),
-			                                    REidx = self.REindex,
-			                                    xPos = electronTrapXPosition,
+		self.electronSystems = ElectronicSystem(N        = int(self.numberOfElectronTraps + 1),
+			                                    REidx    = self.REindex,
+			                                    xPos     = electronTrapXPosition,
 			                                    pumpBeam = self.pumpBeam,
 			                                    stedBeam = self.stedBeam)
 
@@ -59,16 +59,32 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def run(self):
+
+		rareEarthIndex = self.electronSystems._rareEarthIndex
+
 		for simStep in xrange(self.numberOfSimulationSteps):
 			if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
 				sys.stdout.write("\r%.0f %%"%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
 				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
 					print ""
 
-			randIndices = random.sample(range(self.numberOfElectronTraps + 1), 10)
+			# record ground/excited state evolution
+			if not simStep % 10000:
+				self.electronSystems.groundStateEvolution.record(simStep, self.electronSystems.rareEarthGroundStateCounter)
+				self.electronSystems.excitedStateEvolution.record(simStep, self.electronSystems.rareEarthExcitedStateCounter)
+				# reset counters
+				self.electronSystems._reGroundStateCounter = 0
+				self.electronSystems._reExcitedStateCounter = 0
+
+			randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=5)
+			
+			#TODO: this might slow whole system down
+			if rareEarthIndex not in randIndices:
+				randIndices = np.append(randIndices, rareEarthIndex)
+				np.random.shuffle(randIndices)
 
 			for index in randIndices:
-				randomNumber = random.random()
+				randomNumber = np.random.rand()
 
 				if self.electronSystems.isRareEarth(index):
 					result = self.electronSystems.actOnRareEarth(randomNumber)
@@ -81,7 +97,7 @@ class SolidStateStedSimulator(threading.Thread):
 					elif result == 2:
 						# RE got repumped, catch electron from VB
 						self.vb.donateElectron()
-						self.vb.recordEvolution(simStep)
+						self.vb.evolutionDonatedElectrons.record(simStep, self.vb.donatedElectronCount)
 
 				else:
 					result = self.electronSystems.actOnElectronTrap(index, randomNumber)
@@ -92,8 +108,8 @@ class SolidStateStedSimulator(threading.Thread):
 						self.handleRecombination()
 
 			# record how many electrons are in the CB every 1000 simulation steps
-			if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
-				self.cb.recordNumberOfAvailableElectrons(simStep)
+			#if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
+			#	self.cb.recordNumberOfAvailableElectrons(simStep)
 
 	#--------------------------------------------------------------------------
 	def handleRecombination(self):
@@ -116,14 +132,19 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def visualize(self):
-		print "occupied ES:", np.sum(self.electronSystems.population)
-		print "donated from VB:", self.vb.donatedElectronCount
+		if np.sum(self.electronSystems.population) - self.vb.donatedElectronCount == 1:
+			print "Number electrons is valid."
+		else:
+			print "Number electrons is INVALID."
 
 		# plot electron distribution
 		self.visualizer.visualize(self.pumpBeam, self.stedBeam, self.electronSystems, self.electronSystems._rareEarthIndex)
 
 		# plot VB electron donation saturation
-		self.vb.plotElectronEvolution()
+		self.vb.evolutionDonatedElectrons.plot()
+
+		self.electronSystems.groundStateEvolution.plot()
+		self.electronSystems.excitedStateEvolution.plot()
 
 		
 

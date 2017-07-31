@@ -1,11 +1,24 @@
 
 
 import timeit
-
 from Simulator import SolidStateStedSimulator
+import pickle
 
-s = SolidStateStedSimulator(nSimSteps=1E4, nET=300, eTR=41E-9, posRE=-11, centerET=0.0, spanET=3E-6)
+numberSimulationSteps = 1E5
+numberElectronTraps   = 300
+electronTravelRange   = 41E-9
+rareEarthIndex        = 0
+centerElectronTraps   = 0.0
+spanElectronTraps     = 3.0E-6
 
+simulatorList = list()
+
+s = SolidStateStedSimulator(nSimSteps=numberSimulationSteps,
+							nET=numberElectronTraps,
+							eTR=electronTravelRange,
+							posRE=rareEarthIndex,
+							centerET=centerElectronTraps,
+							spanET=spanElectronTraps)
 s.setupSimulation()
 
 start_time = timeit.default_timer()
