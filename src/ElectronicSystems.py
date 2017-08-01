@@ -2,6 +2,8 @@
 from Utility import EvolutionRecorder
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 #==============================================================================
 class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
@@ -31,6 +33,7 @@ class ElectronicSystem(object):
 		# some measures
 		self._reGroundStateCounter  = 0
 		self._reExcitedStateCounter = 0
+		self._reDepletionCounter    = 0
 
 		self.groundStateEvolution = EvolutionRecorder('ground state', 'sim step', 'N')
 		self.excitedStateEvolution = EvolutionRecorder('excited state', 'sim step', 'N')
@@ -55,11 +58,7 @@ class ElectronicSystem(object):
 		self._probDecayRE   = np.array([gamma for i in range(self._numberElements)])
 		self._probDepleteRE = stedIntensity * sigStedRE
 
-		totProbRE = self._probExciteRE		\
-		            + self._probIonizeRE	\
-		            + self._probRepumpRE	\
-		            + self._probDecayRE		\
-		            + self._probDepleteRE
+		totProbRE = self._probExciteRE + self._probIonizeRE + self._probRepumpRE + self._probDecayRE + self._probDepleteRE
 
 		maxTotProbRE = np.max(totProbRE)
 		totProbRE /= maxTotProbRE
@@ -74,6 +73,13 @@ class ElectronicSystem(object):
 		self._probExciteRE  = self._probIonizeRE + self._probExciteRE[self._rareEarthIndex]
 		self._probRepumpRE  = self._probExciteRE + self._probRepumpRE[self._rareEarthIndex]
 		self._probDepleteRE = self._probRepumpRE + self._probDepleteRE[self._rareEarthIndex]
+
+		totProbREval = 10.*(self._probExciteRE + self._probIonizeRE + self._probRepumpRE + self._probDecayRE + self._probDepleteRE)
+		self._probExciteRE  /= totProbREval
+		self._probIonizeRE  /= totProbREval
+		self._probRepumpRE  /= totProbREval
+		self._probDecayRE   /= totProbREval
+		self._probDepleteRE /= totProbREval
 
 		self._normProbability = self._probIonizeET
 		self._normProbability[self._rareEarthIndex] = totProbRE[self._rareEarthIndex]
@@ -117,6 +123,28 @@ class ElectronicSystem(object):
 		return self._reExcitedStateCounter
 
 	#--------------------------------------------------------------------------
+	@property
+	def rareEarthDepletionCounter(self):
+		return self._reDepletionCounter
+
+	#--------------------------------------------------------------------------
+	def resetEvolutionCounters(self):
+		self._reGroundStateCounter  = 0
+		self._reExcitedStateCounter = 0
+		self._reDepletionCounter    = 0
+
+	#--------------------------------------------------------------------------
+	def recordREstate(self):
+		if self._reState == self._states['ground']:
+			self._reGroundStateCounter += 1
+
+		elif self._reState == self._states['excited']:
+			self._reExcitedStateCounter += 1
+
+		else:
+			pass
+
+	#--------------------------------------------------------------------------
 	def getPosition(self, idx):
 		return self._xPos[idx]
 
@@ -143,7 +171,6 @@ class ElectronicSystem(object):
 	def excite(self):
 		if self.reState == self._states['ground']:
 			self.reState = self._states['excited']
-			self._reExcitedStateCounter += 1
 			#print "excited"
 		else:
 			#print "cannot excite RE, not in ground state"
@@ -174,18 +201,18 @@ class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
 	def decay(self):
 		if self.reState == self._states['excited']:
-			#print "decay/depleted"
-			self.reState = self._states['ground']
-			self._reGroundStateCounter += 1
-		else:
-			#print "cannot decay RE, not in excited state"
-			pass
+			#print "decay"
+			self.setElectronToGroundState()
 
 		return 0
 
 	#--------------------------------------------------------------------------
 	def deplete(self):
-		return self.decay()
+		if self.reState == self._states['excited']:
+			#print "depleted"
+			self.setElectronToGroundState()
+
+		return 0
 
 	#--------------------------------------------------------------------------
 	def recombine(self, idx):
@@ -198,6 +225,10 @@ class ElectronicSystem(object):
 				#print "recombined RE"
 
 			return 0
+
+	#--------------------------------------------------------------------------
+	def setElectronToGroundState(self):
+		self.reState = self._states['ground']
 
 	#--------------------------------------------------------------------------
 	def actOnElectronTrap(self, idx, probability):

@@ -4,6 +4,8 @@ from Crystal import ConductionBand, ValenceBand
 from LaserProfiles import PumpBeam, StedBeam
 from Visualizer import Visualizer
 
+import matplotlib.pyplot as plt
+
 import numpy as np
 #import random
 import copy
@@ -13,13 +15,16 @@ import threading
 
 class SolidStateStedSimulator(threading.Thread):
 	#--------------------------------------------------------------------------
-	def __init__(self, nSimSteps=1E6, nET=300, eTR=25E-9, posRE=0, centerET=0.0, spanET=2E-6):
+	def __init__(self, nSimSteps=1E6, nET=300, eTR=25E-9, posRE=0, centerET=0.0, spanET=2E-6,
+		               pumpAmpl=0.1, stedAmpl=0.1):
 		self.numberOfSimulationSteps = int(nSimSteps)
 		self.numberOfElectronTraps = nET
 		self.electronTravelRange = eTR
 		self.centerElectronTraps = centerET
 		self.spanElectronTraps = spanET
 		self.positionOfRareEarthCenter = int(posRE)
+		self.pumpAmplitude = pumpAmpl
+		self.stedAmplitude = stedAmpl
 
 		self.visualizer = Visualizer()
 
@@ -41,8 +46,8 @@ class SolidStateStedSimulator(threading.Thread):
 		self.vb = ValenceBand()
 
 		# set up pump and sted beam
-		self.pumpBeam = PumpBeam(x=0.0, amplitude=0.005, wavelength=470E-9, numAperture=1.3)
-		self.stedBeam = StedBeam(x=0.0, amplitude=0.0,  wavelength=600E-9, numAperture=1.3)
+		self.pumpBeam = PumpBeam(x=0.0, amplitude=self.pumpAmplitude, wavelength=470E-9, numAperture=1.3)
+		self.stedBeam = StedBeam(x=0.0, amplitude=self.stedAmplitude, wavelength=600E-9, numAperture=1.3)
 
 		# set up electronic systems
 		self.electronSystems = ElectronicSystem(N        = int(self.numberOfElectronTraps + 1),
@@ -51,11 +56,13 @@ class SolidStateStedSimulator(threading.Thread):
 			                                    pumpBeam = self.pumpBeam,
 			                                    stedBeam = self.stedBeam)
 
-		self.electronSystems.setupTransitionProbabilities(gamma       = 0.01, 
+		self.electronSystems.setupTransitionProbabilities(gamma       = 0.2, 
 														  sigPumpRE   = 1.0,
-														  sigIonizeRE = 1.0,
-														  sigRepumpRE = 1.0,
+														  sigIonizeRE = 0.2,
+														  sigRepumpRE = 0.2,
 														  sigStedRE   = 1.0)
+
+		self.electronSystems.resetEvolutionCounters()
 
 	#--------------------------------------------------------------------------
 	def run(self):
@@ -63,27 +70,18 @@ class SolidStateStedSimulator(threading.Thread):
 		rareEarthIndex = self.electronSystems._rareEarthIndex
 
 		for simStep in xrange(self.numberOfSimulationSteps):
-			if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
-				sys.stdout.write("\r%.0f %%"%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
+			if simStep % int(0.1*self.numberOfSimulationSteps) == 0:
+				sys.stdout.write("\r%.0f %% "%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
 				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
 					print ""
 
-			# record ground/excited state evolution
-			if not simStep % 10000:
-				self.electronSystems.groundStateEvolution.record(simStep, self.electronSystems.rareEarthGroundStateCounter)
-				self.electronSystems.excitedStateEvolution.record(simStep, self.electronSystems.rareEarthExcitedStateCounter)
-				# reset counters
-				self.electronSystems._reGroundStateCounter = 0
-				self.electronSystems._reExcitedStateCounter = 0
-
-			randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=5)
-			
+			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=5)			
 			#TODO: this might slow whole system down
-			if rareEarthIndex not in randIndices:
-				randIndices = np.append(randIndices, rareEarthIndex)
-				np.random.shuffle(randIndices)
+			if rareEarthIndex not in self.randIndices:
+				self.randIndices = np.append(self.randIndices, rareEarthIndex)
+				np.random.shuffle(self.randIndices)
 
-			for index in randIndices:
+			for index in self.randIndices:
 				randomNumber = np.random.rand()
 
 				if self.electronSystems.isRareEarth(index):
@@ -107,9 +105,13 @@ class SolidStateStedSimulator(threading.Thread):
 						self.cb.absorbElectron(index)
 						self.handleRecombination()
 
-			# record how many electrons are in the CB every 1000 simulation steps
-			#if simStep % int(0.01*self.numberOfSimulationSteps) == 0:
-			#	self.cb.recordNumberOfAvailableElectrons(simStep)
+			# record ground/excited state evolution
+			self.electronSystems.recordREstate()
+			if not simStep % 5000:
+				self.electronSystems.groundStateEvolution.record(simStep, self.electronSystems.rareEarthGroundStateCounter)
+				self.electronSystems.excitedStateEvolution.record(simStep, self.electronSystems.rareEarthExcitedStateCounter)
+				# reset counters
+				self.electronSystems.resetEvolutionCounters()
 
 	#--------------------------------------------------------------------------
 	def handleRecombination(self):
@@ -143,8 +145,15 @@ class SolidStateStedSimulator(threading.Thread):
 		# plot VB electron donation saturation
 		self.vb.evolutionDonatedElectrons.plot()
 
-		self.electronSystems.groundStateEvolution.plot()
-		self.electronSystems.excitedStateEvolution.plot()
+
+		plt.plot(self.electronSystems.groundStateEvolution._x, self.electronSystems.groundStateEvolution._y, label="ground")
+		plt.plot(self.electronSystems.excitedStateEvolution._x, self.electronSystems.excitedStateEvolution._y, label="excited")
+		#plt.plot(self.electronSystems.depletionEvolution._x, self.electronSystems.depletionEvolution._y, label="depleted")
+		plt.legend(loc='best')
+		plt.show()
+		#self.electronSystems.groundStateEvolution.plot()
+		#self.electronSystems.excitedStateEvolution.plot()
+		#self.electronSystems.depletionEvolution.plot()
 
 		
 
