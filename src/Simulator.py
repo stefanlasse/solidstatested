@@ -23,7 +23,7 @@ class SolidStateStedSimulator(threading.Thread):
 		self.electronTravelRange = eTR
 		self.centerElectronTraps = centerET
 		self.spanElectronTraps = spanET
-		self.positionOfRareEarthCenter = int(posRE)
+		self.positionOfRareEarthCenter = posRE
 		self.pumpAmplitude = pumpAmpl
 		self.stedAmplitude = stedAmpl
 		self.saturationAveraging = int(satAvg)
@@ -31,7 +31,7 @@ class SolidStateStedSimulator(threading.Thread):
 
 		self.savePath = savePath
 
-		self.electronTrapPopulationDistribution = np.zeros(self.numberOfElectronTraps + 1)
+		self.electronTrapPopulationDistribution = np.zeros((self.numberOfElectronTraps + 1,self.numberOfElectronTraps + 1))
 
 		self.visualizer = Visualizer()
 		threading.Thread.__init__(self)
@@ -43,11 +43,12 @@ class SolidStateStedSimulator(threading.Thread):
 		electronTrapXPosition = np.linspace(self.centerElectronTraps-self.spanElectronTraps/2.0,
 											self.centerElectronTraps+self.spanElectronTraps/2.0,
 											self.numberOfElectronTraps + 1)
+		electronTrapYPosition = np.copy(electronTrapXPosition)
 
-		self.REindex = int((self.numberOfElectronTraps + 1)/2) + self.positionOfRareEarthCenter
-
+		self.REindex = (int((self.numberOfElectronTraps + 1)/2) + self.positionOfRareEarthCenter,
+						int((self.numberOfElectronTraps + 1)/2) + self.positionOfRareEarthCenter)
 		# set up conduction and valence band
-		self.cb = ConductionBand(pos = electronTrapXPosition)
+		self.cb = ConductionBand(pos=[electronTrapXPosition, electronTrapYPosition])
 		self.vb = ValenceBand()
 
 		# set up pump and sted beam
@@ -79,12 +80,14 @@ class SolidStateStedSimulator(threading.Thread):
 				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
 					print ""
 
-			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=5)			
-			
+			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=(25,2))			
+
 			#TODO: this might slow whole system down
 			if rareEarthIndex not in self.randIndices:
-				self.randIndices = np.append(self.randIndices, rareEarthIndex)
+				self.randIndices = np.vstack((self.randIndices, np.array(rareEarthIndex)))
 				np.random.shuffle(self.randIndices)
+
+			self.randIndices = list(map(tuple, self.randIndices))
 
 			for index in self.randIndices:
 				randomNumber = np.random.rand()
@@ -133,17 +136,23 @@ class SolidStateStedSimulator(threading.Thread):
 		# or to a rare earth.
 		while self.cb.numberAvailableElectrons:
 			self.electronIndices = self.cb.availableElectronIndices
+			#print self.electronIndices
 			np.random.shuffle(self.electronIndices)
-			electronIndex = self.electronIndices[0]
-			self.possibleRecombinationSlots = np.where(self.electronSystems.population == False)[0]
+			electronIndex = tuple(self.electronIndices[0])
+			self.possibleRecombinationSlots = np.vstack(np.where(self.electronSystems.population == False))
+			self.possibleRecombinationSlots = self.possibleRecombinationSlots.T
 			np.random.shuffle(self.possibleRecombinationSlots)
+			self.possibleRecombinationSlots = self.possibleRecombinationSlots.T
+			self.possibleRecombinationSlots = list(map(tuple, self.possibleRecombinationSlots))
 			for esIndex in self.possibleRecombinationSlots:
-				esPos = self.electronSystems.getPosition(esIndex)
+				esPos = self.electronSystems.getPosition(esIndex)				
 				electronPosition = self.cb.getElectronPosition(electronIndex)
-				if np.abs(esPos - electronPosition) <= self.electronTravelRange:
-						self.cb.donateElectron(electronIndex)
-						self.electronSystems.recombine(esIndex)
-						break
+				#print esPos, electronPosition
+				if np.linalg.norm(esPos - electronPosition) <= self.electronTravelRange:
+				#if np.abs(esPos - electronPosition) <= self.electronTravelRange:
+					self.cb.donateElectron(electronIndex)
+					self.electronSystems.recombine(esIndex)
+					break
 
 	#--------------------------------------------------------------------------
 	def visualize(self, simStep):

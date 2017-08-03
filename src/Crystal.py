@@ -9,8 +9,9 @@ import matplotlib.pyplot as plt
 class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	def __init__(self, pos):
-		self._electronPositions = pos
-		self._isPopulated = np.zeros(self._electronPositions.size, dtype=bool)
+		self._electronPositionsX = pos[0]
+		self._electronPositionsY = pos[1]
+		self._isPopulated = np.zeros((self._electronPositionsX.size, self._electronPositionsY.size), dtype=bool)
 		self._availableElectrons = 0
 
 	#--------------------------------------------------------------------------
@@ -21,7 +22,7 @@ class ConductionBand(object):
 	@property
 	def availableElectronIndices(self):
 		"""Returns array of indices for populated electron positions"""
-		return np.nonzero(self._isPopulated)[0]
+		return np.vstack(np.where(self._isPopulated == False)).T
 
 	#--------------------------------------------------------------------------
 	@property
@@ -31,7 +32,7 @@ class ConductionBand(object):
 	#--------------------------------------------------------------------------
 	def getElectronPosition(self, idx):
 		"""Returns the position of a certain electron in the conduction band."""
-		return self._electronPositions[idx]
+		return np.array([self._electronPositionsX[idx[0]], self._electronPositionsX[idx[0]]])
 
 	#--------------------------------------------------------------------------
 	def absorbElectron(self, idx):

@@ -13,10 +13,11 @@ class ElectronicSystem(object):
 
 		self._numberElements = N
 		self._rareEarthIndex = REidx
-		self._isPopulated = np.zeros(self._numberElements, dtype=bool)
-		self._isRareEarth = np.zeros(self._numberElements, dtype=bool)
+		self._isPopulated = np.zeros((self._numberElements, self._numberElements), dtype=bool)
+		self._isRareEarth = np.zeros((self._numberElements, self._numberElements), dtype=bool)
 
 		self.x = np.array(xPos) # setting up x positions of all elements
+		self.y = np.array(xPos) # setting y positions to be same like x.
 
 		# init the rare earth in the electronic systems
 		self._states = dict()
@@ -52,7 +53,8 @@ class ElectronicSystem(object):
 		self._probExciteRE  = pumpIntensity * sigPumpRE
 		self._probIonizeRE  = (pumpIntensity + stedIntensity) * sigIonizeRE
 		self._probRepumpRE  = pumpIntensity * sigRepumpRE
-		self._probDecayRE   = np.array([gamma for i in range(self._numberElements)])
+		#self._probDecayRE   = np.array([gamma for i in range(self._numberElements)])
+		self._probDecayRE   = np.full((self._numberElements, self._numberElements), gamma)
 		self._probDepleteRE = stedIntensity * sigStedRE
 
 		totProbRE = self._probExciteRE + self._probIonizeRE + self._probRepumpRE + self._probDecayRE + self._probDepleteRE
@@ -92,13 +94,22 @@ class ElectronicSystem(object):
 
 	#--------------------------------------------------------------------------
 	@property
+	def y(self):
+		return self._yPos
+
+	@x.setter
+	def y(self, value):
+		self._yPos = value
+
+	#--------------------------------------------------------------------------
+	@property
 	def population(self):
 		return self._isPopulated
 
 	#--------------------------------------------------------------------------
 	@property
 	def N(self):
-		return self._numberElements
+		return self._numberElements**2
 
 	#--------------------------------------------------------------------------
 	@property
@@ -137,7 +148,8 @@ class ElectronicSystem(object):
 
 	#--------------------------------------------------------------------------
 	def getPosition(self, idx):
-		return self._xPos[idx]
+		#print idx
+		return np.array([self._xPos[idx[0]], self._yPos[idx[1]]])
 
 	#--------------------------------------------------------------------------
 	def isPopulated(self, idx):

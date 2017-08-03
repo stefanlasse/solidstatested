@@ -7,6 +7,7 @@ class LaserBeamGaussian(object):
 	#--------------------------------------------------------------------------
 	def __init__(self, x=0.0, amplitude=1.0, wavelength=1E-6, numAperture=1.3):
 		self._xPos = x
+		self._yPos = x
 		self._amplitude = amplitude
 		self._wavelength = wavelength
 		self._numAperture = numAperture
@@ -58,7 +59,8 @@ class LaserBeamGaussian(object):
 
 	#--------------------------------------------------------------------------
 	def getExponent(self, xVals):
-		return 4.0*np.log(2.0)*np.square((xVals - self._xPos)/self._getFWHM())
+		yVals = xVals[:, np.newaxis]
+		return 4.0*np.log(2.0)* ((np.square(xVals - self._xPos) + np.square(yVals - self._yPos))/self._getFWHM())
 
 	#--------------------------------------------------------------------------
 	def _getFWHM(self):

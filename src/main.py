@@ -12,17 +12,17 @@ import matplotlib.pyplot as plt
 #--------------------------------------------------------------------------
 # configuration part
 #--------------------------------------------------------------------------
-numberSimulationSteps = 1E6
-numberElectronTraps   = 300
+numberSimulationSteps = 1E4
+numberElectronTraps   = 100
 electronTravelRange   = 41E-9
-rareEarthIndex        = [i for i in range(-100, 100+1)]
+rareEarthIndex        = [0] #[i for i in range(-40, 40+1)]
 centerElectronTraps   = 0.0
 spanElectronTraps     = 3.0E-6
-pumpAmplitude		  = np.array([0.02, 0.05, 0.1, 0.2, 0.5, 1., 2., 5., 10., 20., 50.])
-stedAmplitude		  = np.array([0.1, 0.2, 0.5, 1., 2., 5., 10., 20., 50.])
-saturationAveraging   = 5E4
+pumpAmplitude		  = 0.05
+stedAmplitude		  = [10.0]
+saturationAveraging   = 1E2
 					  # gamma, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE
-crossSections 		  = [0.2,     5.0,       30.0,          10.0,       2.0]
+crossSections 		  = [0.2,     1.0,       1.0,          1.0,       1.0]
 
 rootPath = "C:/Users/Stefan/Documents/projects/rate_equations/solidstatested/tmp/"
 path = "%sgamma_%.2f_sigPumpRE_%.2f_sigIonizeRE_%.2f_sigRepumpRE_%.2f_sigStedRE_%.2f/"%(rootPath,			\
@@ -39,7 +39,7 @@ path = "%sgamma_%.2f_sigPumpRE_%.2f_sigIonizeRE_%.2f_sigRepumpRE_%.2f_sigStedRE_
 #--------------------------------------------------------------------------
 
 if os.path.exists(path):
-	raise ValueError('Path exists.')
+	pass #raise ValueError('Path exists.')
 else:
 	os.makedirs(path)
 
@@ -52,9 +52,6 @@ simResult = dict()
 # now simulate
 #--------------------------------------------------------------------------
 
-rareEarthIndex        = [i for i in range(-40, 40+1)]
-pumpAmplitude		  = 0.05
-stedAmplitude		  = np.arange(4.0, 44.0, 4.0)
 # sweep sted amplitude
 for sa in stedAmplitude:
 	pa = pumpAmplitude
@@ -63,17 +60,17 @@ for sa in stedAmplitude:
 	simResult = dict()
 	for val in rareEarthIndex:
 		start_time = timeit.default_timer()
-		s = SolidStateStedSimulator(nSimSteps=numberSimulationSteps,
-									nET=numberElectronTraps,
-									eTR=electronTravelRange,
-									posRE=val,
-									centerET=centerElectronTraps,
-									spanET=spanElectronTraps,
-									pumpAmpl=pa,
-									stedAmpl=sa,
-									satAvg=saturationAveraging,
-									savePath=path,
-									cs=crossSections)
+		s = SolidStateStedSimulator(nSimSteps = numberSimulationSteps,
+									nET       = numberElectronTraps,
+									eTR       = electronTravelRange,
+									posRE     = val,
+									centerET  = centerElectronTraps,
+									spanET    = spanElectronTraps,
+									pumpAmpl  = pa,
+									stedAmpl  = sa,
+									satAvg    = saturationAveraging,
+									savePath  = path,
+									cs        = crossSections)
 		s.setupSimulation()
 
 		s.start()
@@ -104,5 +101,13 @@ for sa in stedAmplitude:
 	simResult['excitedStateAverage'] = np.array(excitedAverage)
 	simResult['pumpAmplitude'] = pa
 	simResult['stedAmplitude'] = sa
+	simResult['gamma'] = crossSections[0]
+	simResult['sigPumpRE'] = crossSections[1]
+	simResult['sigIonizeRE'] = crossSections[2]
+	simResult['sigRepumpRE'] = crossSections[3]
+	simResult['sigStedRE'] = crossSections[4]
+	simResult['numberSimulationSteps'] = numberSimulationSteps
+	simResult['numberElectronTraps'] = numberElectronTraps**2
+	simResult['electronTravelRange'] = electronTravelRange
 	pickle.dump(simResult, open("%sPSF_pumpAmpl_%.2f_stedAmpl_%.2f.pys"%(path, pa, sa),'wb'))
 
