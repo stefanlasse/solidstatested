@@ -15,25 +15,33 @@ class Visualizer(object):
 		pass
 
 	#--------------------------------------------------------------------------
-	def visualize(self, pumpBeam, stedBeam, electronicSystems):
+	def visualize(self, pumpBeam, stedBeam, electronicSystems, reIndex, simStep):
 
-		electronicSystemXPositions = list()
-		for es in electronicSystems:
-			electronicSystemXPositions.append(es.x)
+		esXPos = electronicSystems.x
 
-		electronicSystemXPositions = np.array(electronicSystemXPositions)
+		a = pumpBeam.profile(esXPos)
+		b = stedBeam.profile(esXPos)
+		plt.plot(esXPos/1.0E-6, a/np.max(a))
+		plt.plot(esXPos/1.0E-6, b/np.max(b))
 
-		a=pumpBeam.profile(electronicSystemXPositions)
-		b=stedBeam.profile(electronicSystemXPositions)
-		plt.plot(electronicSystemXPositions/1.0E-6, a)
-		plt.plot(electronicSystemXPositions/1.0E-6, b)
+		for idx in range(electronicSystems.N):
+			if idx == reIndex:
+				plt.plot(esXPos[idx]/1.0E-6, 0.1, 'bo')
+			else:
+				plt.plot(esXPos[idx]/1.0E-6, 0.1, 'ro')
 
-		for es in electronicSystems:
-			plt.plot(es.x/1.0E-6, 0.0009, 'ro')
-			if es.isPopulated:
-				plt.plot(es.x/1.0E-6, 0.001, 'g^')
+			if electronicSystems.isPopulated(idx):
+				plt.plot(esXPos[idx]/1.0E-6, 0.2, 'g^')
 
-		plt.show()
+
+		plt.title("%07d"%simStep)
+
+		path = "C:/Users/Stefan/Documents/projects/rate_equations/solidstatested/tmp/"
+		plt.savefig("%scurr_state_REidx_%03d_pump_%.2f_sted_%.2f_cnt_%07d.png"%(path, reIndex, pumpBeam._amplitude, stedBeam._amplitude, simStep))
+		plt.close()
+
+
+		#plt.show()
 		
 
 	#--------------------------------------------------------------------------

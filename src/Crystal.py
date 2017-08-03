@@ -1,17 +1,17 @@
 
-import copy
-import random
+from Utility import EvolutionRecorder
+
 import numpy as np
 import matplotlib.pyplot as plt
-from ElectronicSystems import Electron
+
 
 #==============================================================================
 class ConductionBand(object):
 	#--------------------------------------------------------------------------
-	def __init__(self):
-		self._electrons = list()
-		self._evolutionAvailableElectrons = np.array([])
-		self._evolutionAvailableElectronsSimsteps = np.array([])
+	def __init__(self, pos):
+		self._electronPositions = pos
+		self._isPopulated = np.zeros(self._electronPositions.size, dtype=bool)
+		self._availableElectrons = 0
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
@@ -19,43 +19,34 @@ class ConductionBand(object):
 
 	#--------------------------------------------------------------------------
 	@property
-	def availableElectrons(self):
-		return len(self._electrons)
+	def availableElectronIndices(self):
+		"""Returns array of indices for populated electron positions"""
+		return np.nonzero(self._isPopulated)[0]
 
 	#--------------------------------------------------------------------------
 	@property
-	def electronEvolution(self):
-		return self._evolutionAvailableElectrons
+	def numberAvailableElectrons(self):
+		return np.sum(self._isPopulated)
 
 	#--------------------------------------------------------------------------
-	def recordNumberOfAvailableElectrons(self, simStep):
-		self._evolutionAvailableElectrons = np.append(self._evolutionAvailableElectrons, self.availableElectrons)
-		self._evolutionAvailableElectronsSimsteps = np.append(self._evolutionAvailableElectrons, simStep)
+	def getElectronPosition(self, idx):
+		"""Returns the position of a certain electron in the conduction band."""
+		return self._electronPositions[idx]
 
 	#--------------------------------------------------------------------------
-	def shuffleElectrons(self):
-		random.shuffle(self._electrons)
-
-	#--------------------------------------------------------------------------
-	def getElectron(self, idx):
-		return self._electrons[idx] # former deepcopy
-
-	#--------------------------------------------------------------------------
-	def absorbElectron(self, electron):
+	def absorbElectron(self, idx):
 		"""Absorbs an electron from an electron trap or a rare earth."""
-		if electron is not None:
-			self._electrons.append(electron) # former deepcopy
-		else:
-			pass
-
+		self._isPopulated[idx] = True
+		
 	#--------------------------------------------------------------------------
 	def donateElectron(self, idx):
 		"""Releases a certain electron from the CB to an electron trap
 		   or to a rare earth."""
-		tmp = self._electrons[idx] # former deepcopy
-		del self._electrons[idx]
-		return tmp
-
+		self._isPopulated[idx] = False
+		
+	#--------------------------------------------------------------------------
+	def recordNumberOfAvailableElectrons(self, simstep):
+		pass
 
 
 
@@ -65,7 +56,7 @@ class ValenceBand(object):
 	def __init__(self):
 		self._donatedElectronCount = 0
 		self._evolutionTime = list()
-		self._evolutionDonatedElectrons = list()
+		self.evolutionDonatedElectrons = EvolutionRecorder('donated VB electrons', 'sim step', 'N')
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
@@ -77,14 +68,13 @@ class ValenceBand(object):
 		return self._donatedElectronCount
 
 	#--------------------------------------------------------------------------
-	def donateElectron(self, x=0.0, travelRange=25E-9):
+	def donateElectron(self):
 		self._donatedElectronCount += 1
-		return Electron(x=x, travelRange=travelRange)
 
 	#--------------------------------------------------------------------------
-	def recordEvolution(self, simulationStep):
-		self._evolutionTime.append(simulationStep)
-		self._evolutionDonatedElectrons.append(self.donatedElectronCount)
+	#def recordEvolution(self, simulationStep):
+	#	self._evolutionTime.append(simulationStep)
+	#	self._evolutionDonatedElectrons.append(self.donatedElectronCount)
 
 	#--------------------------------------------------------------------------
 	def plotElectronEvolution(self):
