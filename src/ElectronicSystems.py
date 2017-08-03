@@ -2,8 +2,6 @@
 from Utility import EvolutionRecorder
 import numpy as np
 
-import matplotlib.pyplot as plt
-
 #==============================================================================
 class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
@@ -33,7 +31,6 @@ class ElectronicSystem(object):
 		# some measures
 		self._reGroundStateCounter  = 0
 		self._reExcitedStateCounter = 0
-		self._reDepletionCounter    = 0
 
 		self.groundStateEvolution = EvolutionRecorder('ground state', 'sim step', 'N')
 		self.excitedStateEvolution = EvolutionRecorder('excited state', 'sim step', 'N')
@@ -123,15 +120,9 @@ class ElectronicSystem(object):
 		return self._reExcitedStateCounter
 
 	#--------------------------------------------------------------------------
-	@property
-	def rareEarthDepletionCounter(self):
-		return self._reDepletionCounter
-
-	#--------------------------------------------------------------------------
 	def resetEvolutionCounters(self):
 		self._reGroundStateCounter  = 0
 		self._reExcitedStateCounter = 0
-		self._reDepletionCounter    = 0
 
 	#--------------------------------------------------------------------------
 	def recordREstate(self):

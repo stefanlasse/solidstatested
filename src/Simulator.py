@@ -4,11 +4,11 @@ from Crystal import ConductionBand, ValenceBand
 from LaserProfiles import PumpBeam, StedBeam
 from Visualizer import Visualizer
 
+from mpl_toolkits.axes_grid1 import host_subplot
+import mpl_toolkits.axisartist as AA
 import matplotlib.pyplot as plt
 
 import numpy as np
-#import random
-import copy
 import sys
 
 import threading
@@ -16,7 +16,7 @@ import threading
 class SolidStateStedSimulator(threading.Thread):
 	#--------------------------------------------------------------------------
 	def __init__(self, nSimSteps=1E6, nET=300, eTR=25E-9, posRE=0, centerET=0.0, spanET=2E-6,
-		               pumpAmpl=0.1, stedAmpl=0.1):
+		               pumpAmpl=0.1, stedAmpl=0.1, satAvg=10000, savePath="C:/", cs=[0,0,0,0,0]):
 		self.numberOfSimulationSteps = int(nSimSteps)
 		self.numberOfElectronTraps = nET
 		self.electronTravelRange = eTR
@@ -25,9 +25,14 @@ class SolidStateStedSimulator(threading.Thread):
 		self.positionOfRareEarthCenter = int(posRE)
 		self.pumpAmplitude = pumpAmpl
 		self.stedAmplitude = stedAmpl
+		self.saturationAveraging = int(satAvg)
+		self.crossSections = cs
+
+		self.savePath = savePath
+
+		self.electronTrapPopulationDistribution = np.zeros(self.numberOfElectronTraps + 1)
 
 		self.visualizer = Visualizer()
-
 		threading.Thread.__init__(self)
 
 	#--------------------------------------------------------------------------
@@ -56,11 +61,11 @@ class SolidStateStedSimulator(threading.Thread):
 			                                    pumpBeam = self.pumpBeam,
 			                                    stedBeam = self.stedBeam)
 
-		self.electronSystems.setupTransitionProbabilities(gamma       = 0.2, 
-														  sigPumpRE   = 1.0,
-														  sigIonizeRE = 0.2,
-														  sigRepumpRE = 0.2,
-														  sigStedRE   = 1.0)
+		self.electronSystems.setupTransitionProbabilities(gamma       = self.crossSections[0], 
+														  sigPumpRE   = self.crossSections[1],
+														  sigIonizeRE = self.crossSections[2],
+														  sigRepumpRE = self.crossSections[3],
+														  sigStedRE   = self.crossSections[4])
 
 		self.electronSystems.resetEvolutionCounters()
 
@@ -76,6 +81,7 @@ class SolidStateStedSimulator(threading.Thread):
 					print ""
 
 			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=5)			
+			
 			#TODO: this might slow whole system down
 			if rareEarthIndex not in self.randIndices:
 				self.randIndices = np.append(self.randIndices, rareEarthIndex)
@@ -107,11 +113,19 @@ class SolidStateStedSimulator(threading.Thread):
 
 			# record ground/excited state evolution
 			self.electronSystems.recordREstate()
-			if not simStep % 5000:
+			if not simStep % self.saturationAveraging:
 				self.electronSystems.groundStateEvolution.record(simStep, self.electronSystems.rareEarthGroundStateCounter)
 				self.electronSystems.excitedStateEvolution.record(simStep, self.electronSystems.rareEarthExcitedStateCounter)
-				# reset counters
 				self.electronSystems.resetEvolutionCounters()
+			
+			#if not simStep % 10:
+			self.recordElectronTrapPopulationDistribution(self.electronSystems.population)
+
+		# after last simulation step
+		self.savePopulationEvolution()
+		self.saveElectronTrapPopulationDistribution()
+
+		#self.visualize(simStep)
 
 	#--------------------------------------------------------------------------
 	def handleRecombination(self):
@@ -133,29 +147,74 @@ class SolidStateStedSimulator(threading.Thread):
 						break
 
 	#--------------------------------------------------------------------------
-	def visualize(self):
-		if np.sum(self.electronSystems.population) - self.vb.donatedElectronCount == 1:
-			print "Number electrons is valid."
-		else:
-			print "Number electrons is INVALID."
+	def visualize(self, simStep):
+		#if np.sum(self.electronSystems.population) - self.vb.donatedElectronCount == 1:
+		#	print "Number electrons is valid."
+		#else:
+		#	print "Number electrons is INVALID."
 
 		# plot electron distribution
-		self.visualizer.visualize(self.pumpBeam, self.stedBeam, self.electronSystems, self.electronSystems._rareEarthIndex)
+		self.visualizer.visualize(self.pumpBeam, self.stedBeam, self.electronSystems, self.electronSystems._rareEarthIndex, simStep)
 
 		# plot VB electron donation saturation
-		self.vb.evolutionDonatedElectrons.plot()
+		#self.vb.evolutionDonatedElectrons.plot()
 
-
-		plt.plot(self.electronSystems.groundStateEvolution._x, self.electronSystems.groundStateEvolution._y, label="ground")
-		plt.plot(self.electronSystems.excitedStateEvolution._x, self.electronSystems.excitedStateEvolution._y, label="excited")
-		#plt.plot(self.electronSystems.depletionEvolution._x, self.electronSystems.depletionEvolution._y, label="depleted")
-		plt.legend(loc='best')
-		plt.show()
 		#self.electronSystems.groundStateEvolution.plot()
 		#self.electronSystems.excitedStateEvolution.plot()
 		#self.electronSystems.depletionEvolution.plot()
 
+	#--------------------------------------------------------------------------
+	def savePopulationEvolution(self):
+		plt.plot(self.electronSystems.groundStateEvolution._x, self.electronSystems.groundStateEvolution._y, label="ground")
+		plt.plot(self.electronSystems.excitedStateEvolution._x, self.electronSystems.excitedStateEvolution._y, label="excited")
+		plt.legend(loc='best')
+		plt.title("Rare earth population evolution, REpos=%g"%(self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)))
+		plt.savefig("%sgnd_exc_evolution_REidx_%03d_pump_%.2f_sted_%.2f.png"%(self.savePath, self.positionOfRareEarthCenter, self.pumpAmplitude, self.stedAmplitude))
+		plt.close()
+
+	#--------------------------------------------------------------------------
+	def recordElectronTrapPopulationDistribution(self, distribution):
+		self.electronTrapPopulationDistribution += 1.0*distribution
+
+	#--------------------------------------------------------------------------
+	def saveElectronTrapPopulationDistribution(self):
+		esXPos = self.electronSystems.x
+
+		host = host_subplot(111, axes_class=AA.Axes)
+		plt.subplots_adjust(right=0.75)
+
+		par1 = host.twinx()
+		par2 = host.twinx()
+		offset = 60
+		new_fixed_axis = par2.get_grid_helper().new_fixed_axis
+		par2.axis["right"] = new_fixed_axis(loc="right",
+		                                    axes=par2,
+		                                    offset=(offset, 0))
+		par2.axis["right"].toggle(all=True)
+
+		host.set_xlabel("trap position [um]")
+		host.set_ylabel("Pump intensity")
+		par1.set_ylabel("STED intensity")
+		par2.set_ylabel("Population distribution")
+
+
+		a = self.pumpBeam.profile(esXPos)
+		b = self.stedBeam.profile(esXPos)
+		p1, = host.plot(esXPos/1.0E-6, a, label="Pump intensity")
+		p2, = par1.plot(esXPos/1.0E-6, b, label="STED intensity")
 		
+		distribution = self.electronTrapPopulationDistribution
+		distribution[self.electronSystems._rareEarthIndex] = 0
+		p3, = par2.plot(esXPos/1.0E-6, distribution, label="Population distribution")
 
+		host.axis["left"].label.set_color(p1.get_color())
+		par1.axis["right"].label.set_color(p2.get_color())
+		par2.axis["right"].label.set_color(p3.get_color())
 
+		plt.title("Electron trap population distribution, REpos=%g"%(self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)))
+		plt.savefig("%spop_dist_REidx_%03d_pump_%.2f_sted_%.2f.png"%(self.savePath, self.positionOfRareEarthCenter, self.pumpAmplitude, self.stedAmplitude))
+		plt.close()
+
+	#--------------------------------------------------------------------------
+	#--------------------------------------------------------------------------
 
