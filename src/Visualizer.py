@@ -1,4 +1,6 @@
 
+import matplotlib as mpl
+mpl.rcParams['font.size'] = 16
 
 import matplotlib.pyplot as plt
 import numpy as np

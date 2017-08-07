@@ -1,4 +1,7 @@
 
+import matplotlib as mpl
+mpl.rcParams['font.size'] = 16
+
 import matplotlib.pyplot as plt
 
 class EvolutionRecorder(object):

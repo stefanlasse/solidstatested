@@ -7,11 +7,10 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-mpl.rcParams["savefig.directory"] = os.chdir(os.path.dirname(__file__))
+mpl.rcParams['savefig.directory'] = os.chdir(os.path.dirname(__file__))
+mpl.rcParams['font.size'] = 16
 
 from lmfit.models import LorentzianModel, PowerLawModel, ConstantModel, ExpressionModel
-
-
 
 
 class Postprocessor(object):

@@ -1,30 +1,33 @@
 
 
 import timeit
-from Simulator import SolidStateStedSimulator
 import pickle
 import numpy as np
 import os
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams['savefig.directory'] = os.chdir(os.path.dirname(__file__))
+mpl.rcParams['font.size'] = 16
 
+from Simulator import SolidStateStedSimulator
 
 #--------------------------------------------------------------------------
 # configuration part
 #--------------------------------------------------------------------------
-numberSimulationSteps = 1E4
+numberSimulationSteps = 1E5
 numberElectronTraps   = 100
-electronTravelRange   = 41E-9
-rareEarthIndex        = [0] #[i for i in range(-40, 40+1)]
+electronTravelRange   = 150E-9
+rareEarthIndex        = [(i,0) for i in range(-50, 50+1)]
 centerElectronTraps   = 0.0
 spanElectronTraps     = 3.0E-6
-pumpAmplitude		  = 0.05
-stedAmplitude		  = [10.0]
-saturationAveraging   = 1E2
+pumpAmplitude		  = np.arange(0.01, 0.1, 0.01)
+stedAmplitude		  = np.arange(5.0, 51.0, 1.0)
+saturationAveraging   = 0.0001*numberSimulationSteps
 					  # gamma, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE
-crossSections 		  = [0.2,     1.0,       1.0,          1.0,       1.0]
+crossSections 		  = [0.2,     1.0,       15.0,          2.0,       1.0]
 
-rootPath = "C:/Users/Stefan/Documents/projects/rate_equations/solidstatested/tmp/"
+rootPath = "C:/Users/Stefan/Documents/projects/rate_equations/solidstatested/tmp/2D/"
 path = "%sgamma_%.2f_sigPumpRE_%.2f_sigIonizeRE_%.2f_sigRepumpRE_%.2f_sigStedRE_%.2f/"%(rootPath,			\
 																						crossSections[0],	\
 																						crossSections[1],	\
@@ -52,7 +55,6 @@ simResult = dict()
 # now simulate
 #--------------------------------------------------------------------------
 
-# sweep sted amplitude
 for sa in stedAmplitude:
 	pa = pumpAmplitude
 	groundAverage  = list()
@@ -88,16 +90,17 @@ for sa in stedAmplitude:
 	# plot result (PSF)
 	posStep = s.electronSystems.x[-1] - s.electronSystems.x[-2]
 	xPos = np.array([i*posStep for i in range(len(rareEarthIndex))])
-	pp=s.pumpBeam.profile(xPos-1E-6)
+	#pp=s.pumpBeam.profile(s.electronTrapXPosition, s.electronTrapYPosition)
 	plt.plot(xPos, np.array(excitedAverage)/np.max(excitedAverage))
-	plt.plot(xPos, pp/np.max(pp))
+	#plt.plot(xPos, pp/np.max(pp))
 	plt.title("pump = %.2f, sted = %.2f"%(pa, sa))
 	plt.savefig("%sPSF_pumpAmpl_%.2f_stedAmpl_%.2f.png"%(path, pa, sa))
 	plt.close()
 
 	# save simulation result (PSF)
-	simResult['xPos'] = xPos
-	simResult['pumpBeamProfile'] = pp
+	simResult['xPos'] = s.electronTrapXPosition
+	simResult['yPos'] = s.electronTrapYPosition
+	#simResult['pumpBeamProfile'] = pp
 	simResult['excitedStateAverage'] = np.array(excitedAverage)
 	simResult['pumpAmplitude'] = pa
 	simResult['stedAmplitude'] = sa
