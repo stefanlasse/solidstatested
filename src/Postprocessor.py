@@ -46,9 +46,13 @@ class Postprocessor(object):
 
 			model = LorentzianModel(prefix='l1_')
 			pars = model.guess(y, x=x)
+
+			pars['l1_center'].set(-1.5E-6, min=-1.5E-6-1E-10, max=-1.5E-6+1E-10)
 			
 			fitInit = model.eval(pars, x=x)
 			out = model.fit(y, pars, x=x)
+
+			print "%.3g, %.5g"%(out.params['l1_center'].value, out.params['l1_fwhm'].value)
 
 			plt.plot(x, y, 'b-', label='data')
 			plt.plot(x, fitInit, 'k--', label='guess')
@@ -101,6 +105,6 @@ class Postprocessor(object):
 	#--------------------------------------------------------------------------
 
 
-p = Postprocessor('../tmp/gamma_0.20_sigPumpRE_1.00_sigIonizeRE_5.00_sigRepumpRE_0.80_sigStedRE_0.50')
+p = Postprocessor('D:/STED_sim/2D/gamma_0.20_sigPumpRE_1.00_sigIonizeRE_15.00_sigRepumpRE_2.00_sigStedRE_1.00')
 p.getAllResultFiles()
 p.fit()

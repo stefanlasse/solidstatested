@@ -85,7 +85,7 @@ class SolidStateStedSimulator(threading.Thread):
 				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
 					print ""
 
-			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=(100,2))			
+			self.randIndices = np.random.randint(low=0, high=self.numberOfElectronTraps+1, size=(30,2))			
 
 			#TODO: this might slow whole system down
 			if rareEarthIndex not in self.randIndices:
@@ -184,7 +184,7 @@ class SolidStateStedSimulator(threading.Thread):
 		plt.legend(loc='best')
 		repos = self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)/1.0E-6
 		plt.title("RE pop evol, REpos=%s"%(repos.__str__()))
-		plt.savefig('%spop_evol_REidx=%s.png'%(self.savePath, self.positionOfRareEarthCenter.__str__()), dpi=300)
+		plt.savefig('%spop_evol_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
 		plt.close()
 
 	#--------------------------------------------------------------------------
@@ -214,7 +214,7 @@ class SolidStateStedSimulator(threading.Thread):
 		plt.title("Trap dist, REpos=%s"%(repos.__str__()))
 
 		plt.colorbar()
-		plt.savefig('%sdistribution_REidx=%s.png'%(self.savePath, self.positionOfRareEarthCenter.__str__()), dpi=300)
+		plt.savefig('%sdistribution_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
 		plt.close()
 
 	#--------------------------------------------------------------------------
