@@ -5,250 +5,296 @@ import numpy as np
 #==============================================================================
 class ElectronicSystem(object):
 	#--------------------------------------------------------------------------
-	def __init__(self, REidx, xPos, yPos, pumpBeam, stedBeam):
-		"""creates N electronic systems. RE must be specified separately in here"""
-		self._numberElementsX = xPos.size
-		self._numberElementsY = yPos.size
-		self._rareEarthIndex = REidx
-		self._isPopulated = np.zeros((self._numberElementsX, self._numberElementsY), dtype=bool)
-		self._isRareEarth = np.zeros((self._numberElementsX, self._numberElementsY), dtype=bool)
+	def __init__(self, RExPos, REyPos, ETxPos, ETyPos, pumpBeam, stedBeam):
+		
+		if ETxPos.size != ETyPos.size:
+			raise ValueError("x and y position array for ET must be of same size.")
 
-		# setting up x positions of all elements
-		self.x = np.array(xPos)
-		self.y = np.array(yPos)
+		if RExPos.size != REyPos.size:
+			raise ValueError("x and y position array for RE must be of same size.")
 
-		self._pumpBeam = pumpBeam
-		self._stedBeam = stedBeam
+		# access indices for an electronic systems (for both ET and RE)
+		self.idx = dict()
+		self.idx['x']           = 0
+		self.idx['y']           = 1
+		self.idx['z']           = 2
+		self.idx['isRE']        = 3
+		self.idx['isPopulated'] = 4
+		self.idx['pDecay']      = 5
+		self.idx['pIonize']     = 6
+		self.idx['pExcite']     = 7
+		self.idx['pRepump']     = 8
+		self.idx['pDeplete']    = 9
+		self.idx['reState']     = 10
+		self.idx['groundStateCounter']  = 11
+		self.idx['excitedStateCounter'] = 12
 
 		# init the rare earth in the electronic systems
 		self._states = dict()
-		self._states['ground']  = 1
-		self._states['excited'] = 2
-		self._states['ionized'] = 3
+		self._states['ground']  = 1.0
+		self._states['excited'] = 2.0
+		self._states['ionized'] = 3.0
 
-		self._isRareEarth[REidx] = True
-		self._isPopulated[REidx] = True
-		self._reState = self._states['ground']
+		# setup and initialize electron traps
+		self.electronTraps = np.zeros((ETxPos.size, len(self.idx.keys())))
+		self.electronTraps[:, self.idx['x']] = np.array(ETxPos)
+		self.electronTraps[:, self.idx['y']] = np.array(ETyPos)
+		self.electronTraps[:, self.idx['z']] = np.zeros(ETxPos.size)
 
-		# some measures
-		self.groundStateEvolution = EvolutionRecorder('ground state', 'sim step', 'N')
-		self.excitedStateEvolution = EvolutionRecorder('excited state', 'sim step', 'N')
-		self.resetEvolutionCounters()
+		# setup and initialize rare earths
+		self.rareEarths = np.zeros((RExPos.size, len(self.idx.keys())))
+		self.rareEarths[:, self.idx['x']] = np.array(RExPos)
+		self.rareEarths[:, self.idx['y']] = np.array(REyPos)
+		self.rareEarths[:, self.idx['z']] = np.zeros(self.rareEarths.shape[0])
+		self.rareEarths[:, self.idx['isRE']] = np.ones(self.rareEarths.shape[0])
+		self.rareEarths[:, self.idx['isPopulated']] = np.ones(self.rareEarths.shape[0])
+		self.rareEarths[:, self.idx['reState']] = np.full(self.rareEarths.shape[0], self._states['ground'])
+
+		# keep laser beams
+		self._pumpBeam = pumpBeam
+		self._stedBeam = stedBeam
 
 	#--------------------------------------------------------------------------
-	def __del__(self):
-		pass
+	def setupTransitionProbabilities(self, gammaRE, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE):
+		pumpIntensityET = self._pumpBeam.profile(self.electronTraps[:, self.idx['x']], self.electronTraps[:, self.idx['y']])
+		stedIntensityET = self._stedBeam.profile(self.electronTraps[:, self.idx['x']], self.electronTraps[:, self.idx['y']])
 
-	#--------------------------------------------------------------------------
-	def setupTransitionProbabilities(self, gamma, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE):
-		pumpIntensity = self._pumpBeam.profile(self.x, self.y)
-		stedIntensity = self._stedBeam.profile(self.x, self.y)
+		pumpIntensityRE = self._pumpBeam.profile(self.rareEarths[:, self.idx['x']], self.rareEarths[:, self.idx['y']])
+		stedIntensityRE = self._stedBeam.profile(self.rareEarths[:, self.idx['x']], self.rareEarths[:, self.idx['y']])
 
-		# for electron traps
-		self._probIonizeET = pumpIntensity + stedIntensity
-		self._probIonizeET /= np.max(self._probIonizeET)
+		# probability for ionizing the electron traps
+		pIonizeET = pumpIntensityET + stedIntensityET
+		pIonizeET /= np.max(pIonizeET)
+
+		self.electronTraps[:, self.idx['pIonize']] = pIonizeET
 
 		# for rare earth
-		self._probExciteRE  = pumpIntensity * sigPumpRE
-		self._probIonizeRE  = (pumpIntensity + stedIntensity) * sigIonizeRE
-		self._probRepumpRE  = pumpIntensity * sigRepumpRE
-		self._probDecayRE   = np.full((self._numberElementsX, self._numberElementsY), gamma)
-		self._probDepleteRE = stedIntensity * sigStedRE
+		probExciteRE  = pumpIntensityRE * sigPumpRE
+		probIonizeRE  = (pumpIntensityRE + stedIntensityRE) * sigIonizeRE
+		probRepumpRE  = pumpIntensityRE * sigRepumpRE
+		probDecayRE   = np.full(self.rareEarths.shape[0], gammaRE)
+		probDepleteRE = stedIntensityRE * sigStedRE
 
-		totProbRE = self._probExciteRE + self._probIonizeRE + self._probRepumpRE + self._probDecayRE + self._probDepleteRE
+		totProbRE = probExciteRE + probIonizeRE + probRepumpRE + probDecayRE + probDepleteRE
 
-		maxTotProbRE = np.max(totProbRE)
-		totProbRE /= maxTotProbRE
-		self._probExciteRE  /= maxTotProbRE
-		self._probIonizeRE  /= maxTotProbRE
-		self._probRepumpRE  /= maxTotProbRE
-		self._probDecayRE   /= maxTotProbRE
-		self._probDepleteRE /= maxTotProbRE
+		maxTotProbRE   = np.max(totProbRE)
+		totProbRE     /= maxTotProbRE
+		probExciteRE  /= maxTotProbRE
+		probIonizeRE  /= maxTotProbRE
+		probRepumpRE  /= maxTotProbRE
+		probDecayRE   /= maxTotProbRE
+		probDepleteRE /= maxTotProbRE
 
-		self._probDecayRE   = self._probDecayRE[self._rareEarthIndex]
-		self._probIonizeRE  = self._probDecayRE + self._probIonizeRE[self._rareEarthIndex]
-		self._probExciteRE  = self._probIonizeRE + self._probExciteRE[self._rareEarthIndex]
-		self._probRepumpRE  = self._probExciteRE + self._probRepumpRE[self._rareEarthIndex]
-		self._probDepleteRE = self._probRepumpRE + self._probDepleteRE[self._rareEarthIndex]
+		#self._probDecayRE   = self._probDecayRE[self._rareEarthIndex]
+		probIonizeRE  = probDecayRE  + probIonizeRE
+		probExciteRE  = probIonizeRE + probExciteRE
+		probRepumpRE  = probExciteRE + probRepumpRE
+		probDepleteRE = probRepumpRE + probDepleteRE
 
-		totProbREval = 10.*(self._probExciteRE + self._probIonizeRE + self._probRepumpRE + self._probDecayRE + self._probDepleteRE)
-		self._probExciteRE  /= totProbREval
-		self._probIonizeRE  /= totProbREval
-		self._probRepumpRE  /= totProbREval
-		self._probDecayRE   /= totProbREval
-		self._probDepleteRE /= totProbREval
+		totProbREval   = 10.0 * (probExciteRE + probIonizeRE + probRepumpRE + probDecayRE + probDepleteRE)
+		probExciteRE  /= totProbREval
+		probIonizeRE  /= totProbREval
+		probRepumpRE  /= totProbREval
+		probDecayRE   /= totProbREval
+		probDepleteRE /= totProbREval
 
-		self._normProbability = self._probIonizeET
-		self._normProbability[self._rareEarthIndex] = totProbRE[self._rareEarthIndex]
+		self.rareEarths[:, self.idx['pDecay']]   = probDecayRE
+		self.rareEarths[:, self.idx['pIonize']]  = probIonizeRE
+		self.rareEarths[:, self.idx['pExcite']]  = probExciteRE
+		self.rareEarths[:, self.idx['pRepump']]  = probRepumpRE
+		self.rareEarths[:, self.idx['pDeplete']] = probDepleteRE
+
+		#self._normProbability = pIonizeET
+		#self._normProbability[self._rareEarthIndex] = totProbRE[self._rareEarthIndex]
+
+		# concatenate electron traps and rare earths to a single array system
+		self.electronicSystem = np.vstack((self.electronTraps, self.rareEarths))
+
+		self.resetRareEarthEvolutionCounters()
 
 	#--------------------------------------------------------------------------
 	@property
 	def x(self):
-		return self._xPos
-
-	@x.setter
-	def x(self, value):
-		self._xPos = value
+		return self.electronicSystem[:, self.idx['x']]
 
 	#--------------------------------------------------------------------------
 	@property
 	def y(self):
-		return self._yPos
-
-	@x.setter
-	def y(self, value):
-		self._yPos = value
+		return self.electronicSystem[:, self.idx['y']]
 
 	#--------------------------------------------------------------------------
 	@property
-	def population(self):
-		return self._isPopulated
+	def z(self):
+		return self.electronicSystem[:, self.idx['z']]
 
 	#--------------------------------------------------------------------------
 	@property
 	def N(self):
-		return self._numberElementsX * self._numberElementsY
+		"""Returns the total number of electronic systems.
+		   That means electron traps and rare earths."""
+		return self.electronicSystem.shape[0]
 
 	#--------------------------------------------------------------------------
 	@property
-	def reState(self):
-		return self._reState
-
-	@reState.setter
-	def reState(self, value):
-		self._reState = value
+	def rareEarthIndices(self):
+		"""Returns an array of integers, which represent the
+		   indices of the rare earths in the electronic systems."""
+		return np.where(self.electronicSystem[:, self.idx['isRE']] == 1.0)[0]
 
 	#--------------------------------------------------------------------------
 	@property
-	def rareEarthGroundStateCounter(self):
-		return self._reGroundStateCounter
+	def electronTrapIndices(self):
+		"""Returns an array of integers, which represent the
+		   indices of the electron traps in the electronic systems."""
+		return np.where(self.electronicSystem[:, self.idx['isRE']] == 0.0)[0]
 
 	#--------------------------------------------------------------------------
 	@property
-	def rareEarthExcitedStateCounter(self):
-		return self._reExcitedStateCounter
+	def population(self):
+		return self.electronicSystem[:, self.idx['isPopulated']]
 
 	#--------------------------------------------------------------------------
-	def resetEvolutionCounters(self):
-		self._reGroundStateCounter  = 0
-		self._reExcitedStateCounter = 0
+	def rareEarthGroundStateCounter(self, idx):
+		return self.electronicSystem[idx][self.idx['groundStateCounter']]
 
 	#--------------------------------------------------------------------------
-	def recordREstate(self):
-		if self._reState == self._states['ground']:
-			self._reGroundStateCounter += 1
+	def rareEarthExcitedStateCounter(self, idx):
+		return self.electronicSystem[idx][self.idx['excitedStateCounter']]
 
-		elif self._reState == self._states['excited']:
-			self._reExcitedStateCounter += 1
+	#--------------------------------------------------------------------------
+	def resetRareEarthEvolutionCounters(self):
+		for idx in self.rareEarthIndices:
+			self.electronicSystem[idx][self.idx['groundStateCounter']] = 0.0
+			self.electronicSystem[idx][self.idx['excitedStateCounter']] = 0.0
 
-		else:
-			pass
+	#--------------------------------------------------------------------------
+	def recordREstates(self):
+		for idx in self.rareEarthIndices:
+			if self.electronicSystem[idx][self.idx['reState']] == self._states['ground']:
+				self.electronicSystem[idx][self.idx['groundStateCounter']] += 1.0
+
+			elif self.electronicSystem[idx][self.idx['reState']] == self._states['excited']:
+				self.electronicSystem[idx][self.idx['excitedStateCounter']] += 1.0
+
+			else:
+				pass
 
 	#--------------------------------------------------------------------------
 	def getPosition(self, idx):
-		return np.array([self._xPos[idx[0]], self._yPos[idx[1]]])
+		"""Returns the absolute position of an electronic system."""
+		return self.electronicSystem[idx][:self.idx['z'] + 1]
 
 	#--------------------------------------------------------------------------
 	def isPopulated(self, idx):
-		return self._isPopulated[idx]
+		return self.electronicSystem[idx][self.idx['isPopulated']]
+
+	#--------------------------------------------------------------------------
+	def populate(self, idx):
+		self.electronicSystem[idx][self.idx['isPopulated']] = 1.0
 
 	#--------------------------------------------------------------------------
 	def isRareEarth(self, idx):
-		return self._isRareEarth[idx]
+		return self.electronicSystem[idx][self.idx['isRE']]
 
 	#--------------------------------------------------------------------------
 	@property
 	def potentialRecombinationIndices(self):
-		return np.vstack(np.where(self.population == False)).T
+		return np.where(self.electronicSystem[:, self.idx['isPopulated']] == 0.0)[0]
 
 	#--------------------------------------------------------------------------
-	def restore(self):
-		if self.reState == self._states['ionized']:
-			self._isPopulated[self._rareEarthIndex] = True
-			self.reState = self._states['ground']
+	def restore(self, idx):
+		if self.electronicSystem[idx][self.idx['reState']] == self._states['ionized']:
+			self.populate(idx)
+			self.electronicSystem[idx][self.idx['reState']] = self._states['ground']
 			return 2
 
 		else:
-			return 0		
+			return 0
 
 	#--------------------------------------------------------------------------
-	def excite(self):
-		if self.reState == self._states['ground']:
-			self.reState = self._states['excited']
+	def excite(self, idx):
+		if self.electronicSystem[idx][self.idx['reState']] == self._states['ground']:
+			self.electronicSystem[idx][self.idx['reState']] = self._states['excited']
 	
 		return 0
 
 	#--------------------------------------------------------------------------
-	def ionize(self, idx):
-		if self.isPopulated(idx):
-			if self.isRareEarth(idx):
-				if self.reState == self._states['excited']:
-					self.reState = self._states['ionized']
-					self._isPopulated[idx] = False
-					return 1
-
-				else:
-					return 0
+	def ionizeRE(self, idx):
+		if self.electronicSystem[idx][self.idx['isPopulated']]:
+			if self.electronicSystem[idx][self.idx['reState']] == self._states['excited']:
+				self.electronicSystem[idx][self.idx['reState']] = self._states['ionized']
+				self.electronicSystem[idx][self.idx['isPopulated']] = 0.0
+				return 1
 
 			else:
-				self._isPopulated[idx] = False
-				return 1
+				return 0
 
 		else:
 			return 0
 
 	#--------------------------------------------------------------------------
-	def decay(self):
-		if self.reState == self._states['excited']:
-			self.setElectronToGroundState()
+	def ionizeET(self, idx):
+		if self.electronicSystem[idx][self.idx['isPopulated']]:
+			self.electronicSystem[idx][self.idx['isPopulated']] = 0.0
+			return 1
+
+		else:
+			return 0
+
+	#--------------------------------------------------------------------------
+	def decay(self, idx):
+		if self.electronicSystem[idx][self.idx['reState']] == self._states['excited']:
+			self.electronicSystem[idx][self.idx['reState']] = self._states['ground']
 
 		return 0
 
 	#--------------------------------------------------------------------------
-	def deplete(self):
-		if self.reState == self._states['excited']:
-			self.setElectronToGroundState()
-
-		return 0
+	def deplete(self, idx):
+		return self.decay(idx)
 
 	#--------------------------------------------------------------------------
 	def recombine(self, idx):
 		if not self.isPopulated(idx):
-			self._isPopulated[idx] = True
+			self.populate(idx)
 
 			if self.isRareEarth(idx):
-				self.reState = self._states['excited']
+				self.electronicSystem[idx][self.idx['reState']] = self._states['excited']
 
 			return 0
-
-	#--------------------------------------------------------------------------
-	def setElectronToGroundState(self):
-		self.reState = self._states['ground']
 
 	#--------------------------------------------------------------------------
 	def actOnElectronTrap(self, idx, probability):
-		if probability <= self._normProbability[idx]:
-			return self.ionize(idx)
+		if probability <= self.electronicSystem[idx][self.idx['pIonize']]:
+			return self.ionizeET(idx)
 
 		else:
 			return 0
 
 	#--------------------------------------------------------------------------
-	def actOnRareEarth(self, probability):
-		if probability <= self._probDecayRE:
-			return self.decay()
+	def actOnRareEarth(self, idx, probability):
+		if probability <= self.electronicSystem[idx][self.idx['pDecay']]: #self._probDecayRE:
+			return self.decay(idx)
 
-		elif probability <= self._probIonizeRE:
-			return self.ionize(self._rareEarthIndex)
+		elif probability <= self.electronicSystem[idx][self.idx['pIonize']]: #self._probIonizeRE:
+			return self.ionizeRE(idx)
 
-		elif probability <= self._probExciteRE:
-			return self.excite()
+		elif probability <= self.electronicSystem[idx][self.idx['pExcite']]: #self._probExciteRE:
+			return self.excite(idx)
 
-		elif probability <= self._probRepumpRE:
-			return self.restore()
+		elif probability <= self.electronicSystem[idx][self.idx['pRepump']]: #self._probRepumpRE:
+			return self.restore(idx)
 
-		elif probability <= self._probDepleteRE:
-			return self.deplete()
+		elif probability <= self.electronicSystem[idx][self.idx['pDeplete']]: #self._probDepleteRE:
+			return self.deplete(idx)
 
 		else:
 			return 0
+
+	#--------------------------------------------------------------------------
+	def actOnSystem(self, idx, probability):
+		if self.electronicSystem[idx][self.idx['isRE']]:
+			result = self.actOnRareEarth(idx, probability)
+		else:
+			result = self.actOnElectronTrap(idx, probability)
+
+		return result

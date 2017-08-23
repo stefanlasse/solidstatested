@@ -73,7 +73,7 @@ class LaserBeamGaussian(object):
 
 	#--------------------------------------------------------------------------
 	def getExponent(self, xVals, yVals):
-		yVals = yVals[:, np.newaxis]
+		#yVals = yVals[:, np.newaxis]
 		return 4.0*np.log(2.0) * ((np.square(xVals - self.x) + np.square(yVals - self.y))/np.square(self.fwhm))
 
 	#--------------------------------------------------------------------------

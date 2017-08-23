@@ -7,10 +7,16 @@ import numpy as np
 #==============================================================================
 class ConductionBand(object):
 	#--------------------------------------------------------------------------
-	def __init__(self, pos):
-		self._electronPositionsX = pos[0]
-		self._electronPositionsY = pos[1]
+	def __init__(self, posET, posRE):
+		# handle electron traps
+		self._electronPositionsX = posET[0]
+		self._electronPositionsY = posET[1]
 		self._isPopulated = np.zeros((self._electronPositionsX.size, self._electronPositionsY.size), dtype=bool)
+		
+		# handle rare earth
+		self._reElectronPosition  = posRE	# 2-tuple for a single rare earth
+		self._reIsPopulated = False
+		
 
 	#--------------------------------------------------------------------------
 	def __del__(self):
@@ -26,7 +32,7 @@ class ConductionBand(object):
 	@property
 	def numberAvailableElectrons(self):
 		"""Returns the amount of electrons in the conduction band."""
-		return np.sum(self._isPopulated)
+		return np.sum(self._isPopulated) + np.sum(self._reIsPopulated)
 
 	#--------------------------------------------------------------------------
 	def getElectronPosition(self, idx):
