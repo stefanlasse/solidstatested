@@ -163,10 +163,9 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def saveRareEarthPopulationEvolution(self):
-		plt.plot(self.electronSystems.groundStateEvolution._x, self.electronSystems.groundStateEvolution._y, label="ground")
-		plt.plot(self.electronSystems.excitedStateEvolution._x, self.electronSystems.excitedStateEvolution._y, label="excited")
+		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._g, label="ground")
+		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._e, label="excited")
 		plt.legend(loc='best')
-		repos = self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)/1.0E-6
 		plt.title("RE pop evol, REpos=%s"%(repos.__str__()))
 		plt.savefig('%spop_evol_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
 		plt.close()
