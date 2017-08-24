@@ -21,7 +21,16 @@ import threading
 class SolidStateStedSimulator(threading.Thread):
 	#--------------------------------------------------------------------------
 	def __init__(self, nSimSteps=1E6, savePath="C:/"):
+		"""
+		Creates a simulator object for STED microscopy in solids.
 
+		Parameters
+		----------
+		nSimSteps : int or float
+			Number of iteration steps for the simulation
+		savePath : string
+			Path to where all simulation results are saved
+		"""
 		self.numberOfSimulationSteps = int(nSimSteps + 1)
 		self.savePath = savePath
 
@@ -29,6 +38,30 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def setupSimulation(self, REx, REy, ETx, ETy, pumpAmpl=0.05, stedAmpl=0.5, cs=[1,1,1,1,1], eTR=25E-9):
+		"""
+		Configures all necessary parameters and creates the objects needed for the simulator.
+
+		Parameters
+		----------
+		REx : array-like
+			Represents the x-coordinates of the rare earths
+		REy : array-like
+			Represents the y-coordinates of the rare earths
+		ETx : array-like
+			Represents the x-coordinates of the electron traps
+		ETy : array-like
+			Represents the y-coordinates of the electron traps
+		pumpAmpl : float
+			Amplitude for the excitation laser beam
+		stedAmpl : float
+			Amplitude for the STED laser beam
+		cs : array-like
+			Cross-section for the rare earth in the order
+			[gammaRE, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE]
+		eTR : float
+			Electron travel range
+		"""
+
 		self.rareEarthXCoordinates = np.array(REx)
 		self.rareEarthYCoordinates = np.array(REy)
 		self.electronTrapXCoordinates = ETx
@@ -41,7 +74,6 @@ class SolidStateStedSimulator(threading.Thread):
 		self.electronicSystemsPopulationDistribution = np.zeros(REx.size + ETx.size)
 
 		# set up conduction and valence band
-		#self.cb = ConductionBand(pos=[self.electronTrapXPosition, self.electronTrapYPosition])
 		self.vb = ValenceBand()
 
 		# set up pump and sted beam
