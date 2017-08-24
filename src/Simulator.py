@@ -136,7 +136,7 @@ class SolidStateStedSimulator(threading.Thread):
 			for index in self.randIndices:
 				randomNumber = np.random.rand()
 
-				if index in rareEarthIndices: #if self.electronSystems.isRareEarth(index):
+				if index in rareEarthIndices:
 					result = self.electronSystems.actOnRareEarth(index, randomNumber)
 
 					if result == 1:

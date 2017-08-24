@@ -375,3 +375,4 @@ class ElectronicSystem(object):
 
 		else:
 			return 0
+
