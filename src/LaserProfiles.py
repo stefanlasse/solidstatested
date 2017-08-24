@@ -69,7 +69,7 @@ class LaserBeamGaussian(object):
 	#--------------------------------------------------------------------------
 	@property
 	def sigma(self):
-		return self.fwhm/(2.0*np.sqrt(2.0*np.log(2.0)))
+		return self.fwhm/2.0
 
 	#--------------------------------------------------------------------------
 	def getExponent(self, xVals, yVals):
