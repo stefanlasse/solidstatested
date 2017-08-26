@@ -4,13 +4,6 @@ from ElectronicSystems import ElectronicSystem
 from LaserProfiles import PumpBeam, StedBeam
 from Utility import EvolutionRecorder
 
-from mpl_toolkits.axes_grid1 import host_subplot
-import mpl_toolkits.axisartist as AA
-import matplotlib as mpl
-mpl.rcParams['font.size'] = 16
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 
 import numpy as np
 import sys
@@ -30,9 +23,10 @@ class SolidStateStedSimulator(Process):
 		resultContainer : multiprocessing.Queue
 			Container to save simulation results
 		"""
+		super(SolidStateStedSimulator, self).__init__()
+
 		self.numberOfSimulationSteps = int(nSimSteps + 1)
 		self.resultContainer = resultContainer
-		Process.__init__(self)
 
 	#--------------------------------------------------------------------------
 	def setupSimulation(self, REx, REy, ETx, ETy, pumpAmpl=0.05, stedAmpl=0.5, cs=[1,1,1,1,1], eTR=25E-9):
@@ -104,7 +98,6 @@ class SolidStateStedSimulator(Process):
 
 	#--------------------------------------------------------------------------
 	def run(self):
-		print "run", self.pid
 		rareEarthIndices = self.electronSystems.rareEarthIndices
 		electronTrapIndices = self.electronSystems.electronTrapIndices
 
@@ -192,49 +185,10 @@ class SolidStateStedSimulator(Process):
 		self.electronicSystemsPopulationDistribution += distribution
 
 	#--------------------------------------------------------------------------
-	def saveRareEarthPopulationEvolution(self):
-		ax = plt.subplot(111)
-		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._g, label="ground")
-		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._e, label="excited")
-		plt.xlabel("Time [sim steps]")
-		plt.ylabel("N [1]")
-		plt.legend(loc='best')
-		plt.suptitle("RE evol, pos=[%.3g, %.3g]"%(self.rareEarthXCoordinates, self.rareEarthYCoordinates))
-		plt.title("pump=%.2f , sted=%.2f"%(self.pumpAmplitude, self.stedAmplitude))
-		return ax
-
-	#--------------------------------------------------------------------------
-	def saveElectronTrapPopulationDistribution(self):
-		esXPos = self.electronSystems.x
-		esYPos = self.electronSystems.y
-
-		xv, yv = np.meshgrid(esXPos, esYPos)
-
-		X = xv/1.0E-6
-		Y = yv/1.0E-6
-		Z = self.electronicSystemsPopulationDistribution
-		Z[self.electronSystems._rareEarthIndex] = 0
-		Z[Z < 1.0] = 1.0
-
-		plt.pcolormesh(X, Y, Z, norm=LogNorm(vmin=Z.min(), vmax=Z.max()), cmap='viridis')
-		plt.xlabel('x [um]')
-		plt.ylabel('y [um]')
-		repos = self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)/1.0E-6
-		plt.title("Trap dist, REpos=%s"%(repos.__str__()))
-
-		plt.colorbar()
-		plt.savefig('%sdistribution_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
-		plt.close()
-
-	#--------------------------------------------------------------------------
 	def finalize(self):
-		print "finished calculations", self.pid	
-
 		# generate the values which are needed for further processing
 		self.groundStateAverage = np.average(np.array_split(self.evolutionRecoders[0]._g, 2)[1])
 		self.excitedStateAverage = np.average(np.array_split(self.evolutionRecoders[0]._e, 2)[1])
-		self.rePopulationEvolution = self.saveRareEarthPopulationEvolution()
-		#self.saveElectronTrapPopulationDistribution()
 
 		# collect single results in a dictionary
 		result = dict()
@@ -242,18 +196,15 @@ class SolidStateStedSimulator(Process):
 		result["reYpos"] = self.rareEarthYCoordinates
 		result["groundStateAverage"] = self.groundStateAverage
 		result["excitedStateAverage"] = self.excitedStateAverage
-		result["rePopulationEvolution"] = self.rePopulationEvolution
+		result["rePopulationEvolution_time"] = self.evolutionRecoders[0]._t
+		result["rePopulationEvolution_groundState"] = self.evolutionRecoders[0]._g
+		result["rePopulationEvolution_excitedState"] = self.evolutionRecoders[0]._e
 		result["pumpAmplitude"] = self.pumpAmplitude
 		result["stedAmplitude"] = self.stedAmplitude
-		result["crossSectrions"] = self.crossSections
+		result["crossSections"] = self.crossSections
 		result["electronTravelRange"] = self.electronTravelRange
 		result["electronTrapXCoordinates"] = self.electronTrapXCoordinates
 		result["electronTrapYCoordinates"] = self.electronTrapYCoordinates
 		result["populationDistribution"] = self.electronicSystemsPopulationDistribution
 
 		self.resultContainer.put(result)
-		print "finalized", self.pid		
-		return
-
-	#--------------------------------------------------------------------------
-
