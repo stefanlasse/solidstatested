@@ -1,8 +1,7 @@
 
 from ElectronicSystems import ElectronicSystem
-from Crystal import ConductionBand, ValenceBand
+#from Crystal import ConductionBand, ValenceBand
 from LaserProfiles import PumpBeam, StedBeam
-from Visualizer import Visualizer
 from Utility import EvolutionRecorder
 
 from mpl_toolkits.axes_grid1 import host_subplot
@@ -16,11 +15,11 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import sys
 
-import threading
+from multiprocessing import Process
 
-class SolidStateStedSimulator(threading.Thread):
+class SolidStateStedSimulator(Process):
 	#--------------------------------------------------------------------------
-	def __init__(self, nSimSteps=1E6, savePath="C:/"):
+	def __init__(self, nSimSteps, resultContainer):
 		"""
 		Creates a simulator object for STED microscopy in solids.
 
@@ -28,13 +27,12 @@ class SolidStateStedSimulator(threading.Thread):
 		----------
 		nSimSteps : int or float
 			Number of iteration steps for the simulation
-		savePath : string
-			Path to where all simulation results are saved
+		resultContainer : multiprocessing.Queue
+			Container to save simulation results
 		"""
 		self.numberOfSimulationSteps = int(nSimSteps + 1)
-		self.savePath = savePath
-
-		threading.Thread.__init__(self)
+		self.resultContainer = resultContainer
+		Process.__init__(self)
 
 	#--------------------------------------------------------------------------
 	def setupSimulation(self, REx, REy, ETx, ETy, pumpAmpl=0.05, stedAmpl=0.5, cs=[1,1,1,1,1], eTR=25E-9):
@@ -61,11 +59,10 @@ class SolidStateStedSimulator(threading.Thread):
 		eTR : float
 			Electron travel range
 		"""
-
 		self.rareEarthXCoordinates = np.array(REx)
 		self.rareEarthYCoordinates = np.array(REy)
-		self.electronTrapXCoordinates = ETx
-		self.electronTrapYCoordinates = ETy
+		self.electronTrapXCoordinates = np.array(ETx)
+		self.electronTrapYCoordinates = np.array(ETy)
 		self.pumpAmplitude = pumpAmpl
 		self.stedAmplitude = stedAmpl
 		self.crossSections = cs
@@ -73,8 +70,8 @@ class SolidStateStedSimulator(threading.Thread):
 
 		self.electronicSystemsPopulationDistribution = np.zeros(REx.size + ETx.size)
 
-		# set up conduction and valence band
-		self.vb = ValenceBand()
+		# set up valence band
+		#self.vb = ValenceBand()
 
 		# set up pump and sted beam
 		self.pumpBeam = PumpBeam(x=0.0, y=0.0, amplitude=self.pumpAmplitude, wavelength=470E-9, numAperture=1.3)
@@ -107,6 +104,7 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def run(self):
+		print "run", self.pid
 		rareEarthIndices = self.electronSystems.rareEarthIndices
 		electronTrapIndices = self.electronSystems.electronTrapIndices
 
@@ -122,10 +120,10 @@ class SolidStateStedSimulator(threading.Thread):
 		progressEvolutionRecord = int(0.05*self.numberOfSimulationSteps)
 
 		for simStep in xrange(self.numberOfSimulationSteps):
-			if not simStep % progressUpdate:
-				sys.stdout.write("\r%.0f %% "%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
-				if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
-					print ""
+			#if not simStep % progressUpdate:
+			#	sys.stdout.write("\r%.0f %% "%(float(simStep)/float(self.numberOfSimulationSteps)*100.0))
+			#	if int(float(simStep)/float(self.numberOfSimulationSteps)*100.0) == 99:
+			#		print ""
 
 			# build up list of random indices for electronic systems
 			# to act on and always include all rare earths.
@@ -145,20 +143,21 @@ class SolidStateStedSimulator(threading.Thread):
 
 					elif result == 2:
 						# RE got repumped, catch electron from VB
-						self.vb.donateElectron()
+						#self.vb.donateElectron()
 						#self.vb.evolutionDonatedElectrons.record(simStep, self.vb.donatedElectronCount)
+						pass
 
 				else:
 					result = self.electronSystems.actOnElectronTrap(index, randomNumber)
 
 					if result == 1:
-						# ET got ionized, add electron to CB
+						# ET got ionized, add electron to CB and recombine to somewhere
 						self.handleRecombination(self.electronSystems.getPosition(index))
 
 			# record ground/excited state evolution (internal)
 			self.electronSystems.recordREstates()
 
-			# record ground/excited state evolution (binned)
+			# record ground/excited state evolution (binned for result)
 			if not simStep % progressEvolutionRecord:
 				for REidx in self.electronSystems.rareEarthIndices:
 					self.evolutionRecoders[self.evolutionRecorderIdx[REidx]].record(simStep,
@@ -171,8 +170,7 @@ class SolidStateStedSimulator(threading.Thread):
 				self.recordElectronTrapPopulationDistribution(self.electronSystems.population)
 
 		# after last simulation step
-		#self.saveRareEarthPopulationEvolution()
-		#self.saveElectronTrapPopulationDistribution()
+		self.finalize()
 
 	#--------------------------------------------------------------------------
 	def handleRecombination(self, electronPosition):
@@ -195,12 +193,15 @@ class SolidStateStedSimulator(threading.Thread):
 
 	#--------------------------------------------------------------------------
 	def saveRareEarthPopulationEvolution(self):
+		ax = plt.subplot(111)
 		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._g, label="ground")
 		plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._e, label="excited")
+		plt.xlabel("Time [sim steps]")
+		plt.ylabel("N [1]")
 		plt.legend(loc='best')
-		plt.title("RE pop evol, REpos=%s"%(repos.__str__()))
-		plt.savefig('%spop_evol_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
-		plt.close()
+		plt.suptitle("RE evol, pos=[%.3g, %.3g]"%(self.rareEarthXCoordinates, self.rareEarthYCoordinates))
+		plt.title("pump=%.2f , sted=%.2f"%(self.pumpAmplitude, self.stedAmplitude))
+		return ax
 
 	#--------------------------------------------------------------------------
 	def saveElectronTrapPopulationDistribution(self):
@@ -213,10 +214,7 @@ class SolidStateStedSimulator(threading.Thread):
 		Y = yv/1.0E-6
 		Z = self.electronicSystemsPopulationDistribution
 		Z[self.electronSystems._rareEarthIndex] = 0
-		Z[Z < 1] = 1
-
-		pumpProfile = self.pumpBeam.profile(esXPos, esYPos)
-		stedProfile = self.stedBeam.profile(esXPos, esYPos)
+		Z[Z < 1.0] = 1.0
 
 		plt.pcolormesh(X, Y, Z, norm=LogNorm(vmin=Z.min(), vmax=Z.max()), cmap='viridis')
 		plt.xlabel('x [um]')
@@ -229,5 +227,33 @@ class SolidStateStedSimulator(threading.Thread):
 		plt.close()
 
 	#--------------------------------------------------------------------------
+	def finalize(self):
+		print "finished calculations", self.pid	
+
+		# generate the values which are needed for further processing
+		self.groundStateAverage = np.average(np.array_split(self.evolutionRecoders[0]._g, 2)[1])
+		self.excitedStateAverage = np.average(np.array_split(self.evolutionRecoders[0]._e, 2)[1])
+		self.rePopulationEvolution = self.saveRareEarthPopulationEvolution()
+		#self.saveElectronTrapPopulationDistribution()
+
+		# collect single results in a dictionary
+		result = dict()
+		result["reXpos"] = self.rareEarthXCoordinates
+		result["reYpos"] = self.rareEarthYCoordinates
+		result["groundStateAverage"] = self.groundStateAverage
+		result["excitedStateAverage"] = self.excitedStateAverage
+		result["rePopulationEvolution"] = self.rePopulationEvolution
+		result["pumpAmplitude"] = self.pumpAmplitude
+		result["stedAmplitude"] = self.stedAmplitude
+		result["crossSectrions"] = self.crossSections
+		result["electronTravelRange"] = self.electronTravelRange
+		result["electronTrapXCoordinates"] = self.electronTrapXCoordinates
+		result["electronTrapYCoordinates"] = self.electronTrapYCoordinates
+		result["populationDistribution"] = self.electronicSystemsPopulationDistribution
+
+		self.resultContainer.put(result)
+		print "finalized", self.pid		
+		return
+
 	#--------------------------------------------------------------------------
 
