@@ -13,6 +13,64 @@ mpl.rcParams['font.size'] = 16
 from lmfit.models import LorentzianModel, PowerLawModel, ConstantModel, ExpressionModel
 
 
+#from mpl_toolkits.axes_grid1 import host_subplot
+#import mpl_toolkits.axisartist as AA
+#import matplotlib as mpl
+#mpl.rcParams['font.size'] = 16
+#from mpl_toolkits.mplot3d import Axes3D
+#import matplotlib.pyplot as plt
+#from matplotlib.colors import LogNorm
+
+
+	#--------------------------------------------------------------------------
+	#def saveRareEarthPopulationEvolution(self):
+	#	ax = plt.subplot(111)
+	#	plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._g, label="ground")
+	#	plt.plot(self.evolutionRecoders[0]._t, self.evolutionRecoders[0]._e, label="excited")
+	#	plt.xlabel("Time [sim steps]")
+	#	plt.ylabel("N [1]")
+	#	plt.legend(loc='best')
+	#	plt.suptitle("RE evol, pos=[%.3g, %.3g]"%(self.rareEarthXCoordinates, self.rareEarthYCoordinates))
+	#	plt.title("pump=%.2f , sted=%.2f"%(self.pumpAmplitude, self.stedAmplitude))
+	#	return ax
+
+	#--------------------------------------------------------------------------
+	#def saveElectronTrapPopulationDistribution(self):
+	#	esXPos = self.electronSystems.x
+	#	esYPos = self.electronSystems.y
+
+	#	xv, yv = np.meshgrid(esXPos, esYPos)
+
+	#	X = xv/1.0E-6
+	#	Y = yv/1.0E-6
+	#	Z = self.electronicSystemsPopulationDistribution
+	#	Z[self.electronSystems._rareEarthIndex] = 0
+	#	Z[Z < 1.0] = 1.0
+
+	#	plt.pcolormesh(X, Y, Z, norm=LogNorm(vmin=Z.min(), vmax=Z.max()), cmap='viridis')
+	#	plt.xlabel('x [um]')
+	#	plt.ylabel('y [um]')
+	#	repos = self.electronSystems.getPosition(self.electronSystems._rareEarthIndex)/1.0E-6
+	#	plt.title("Trap dist, REpos=%s"%(repos.__str__()))
+
+	#	plt.colorbar()
+	#	plt.savefig('%sdistribution_REidx=%s_pump_%.2f_sted_%.0f.png'%(self.savePath, self.positionOfRareEarthCenter.__str__(), self.pumpAmplitude, self.stedAmplitude), dpi=300)
+	#	plt.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class Postprocessor(object):
 	#--------------------------------------------------------------------------
 	def __init__(self, directory):
@@ -48,7 +106,7 @@ class Postprocessor(object):
 			pars = model.guess(y, x=x)
 
 			pars['l1_center'].set(-1.5E-6, min=-1.5E-6-1E-10, max=-1.5E-6+1E-10)
-			
+
 			fitInit = model.eval(pars, x=x)
 			out = model.fit(y, pars, x=x)
 
@@ -63,7 +121,7 @@ class Postprocessor(object):
 
 			self.stedPowers.append(stedAmplitude)
 			self.fwhm.append(out.params['l1_fwhm'].value)
-		
+
 		self.stedPowers, self.fwhm = zip(*sorted(zip(self.stedPowers, self.fwhm)))
 		x = np.array(self.stedPowers)
 		y = np.array(self.fwhm)
@@ -77,10 +135,10 @@ class Postprocessor(object):
 		pars['pl_exponent'].set(min=-10.0, max=0.0)
 		pars['const_c'].set(0.0, min=0.0)
 		model = powerLaw + constant
-		
+
 		#model = ExpressionModel('amp * 1.0/(x**exponent) + offset')
 		#pars = model.make_params(amp=2.733E-7, exponent=0.5, offset=0.0)
-		
+
 		modEval = model.eval(pars, x=x)
 		out = model.fit(y, pars, x=x)
 
