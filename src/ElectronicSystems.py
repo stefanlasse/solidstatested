@@ -166,10 +166,10 @@ class ElectronicSystem(object):
 					indexNeighbours.append(i)
 			self.neighbours[index] = np.array(indexNeighbours)
 
-		print self.neighbours
-
 	#--------------------------------------------------------------------------
 	def getNeighbours(self, index):
+		"""Retruns an array of indices, which are neighbouring to index
+		depending on the electron travel range."""
 		return self.neighbours[index]
 
 	#--------------------------------------------------------------------------
