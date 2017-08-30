@@ -10,7 +10,7 @@ import pickle
 
 class PointSpreadFunction(Thread):
 	#--------------------------------------------------------------------------
-	def __init__(self, N, REcoord, ETcoord, pumpAmpl, stedAmpl, cs, eTR, savePath):
+	def __init__(self, N, REcoord, ETcoord, pumpAmpl, stedAmpl, laserCoord, cs, eTR, savePath):
 
 		super(PointSpreadFunction, self).__init__()
 
@@ -19,6 +19,7 @@ class PointSpreadFunction(Thread):
 		self.ETcoord = ETcoord
 		self.pumpAmpl = pumpAmpl
 		self.stedAmpl = stedAmpl
+		self.laserCoord = laserCoord
 		self.crossSections = cs
 		self.electronTravelRange = eTR
 		self.savePath = savePath
@@ -30,11 +31,12 @@ class PointSpreadFunction(Thread):
 
 	#--------------------------------------------------------------------------
 	def run(self):
-		for rePos in self.REcoord:
+		for laserPosition in self.laserCoord:
 			sim = SolidStateStedSimulator(nSimSteps=self.N, resultContainer=self.resultContainer)
-			sim.setupSimulation(REx=rePos[0], REy=rePos[1],
+			sim.setupSimulation(REx=self.REcoord[0], REy=self.REcoord[1],
 								ETx=self.ETcoord[:,0], ETy=self.ETcoord[:,1],
 								pumpAmpl=self.pumpAmpl, stedAmpl=self.stedAmpl,
+								laserXpos=laserPosition[0], laserYpos=laserPosition[1],
 								cs=self.crossSections, eTR=self.electronTravelRange)
 			sim.start()
 			self.processList.append(sim)

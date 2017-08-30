@@ -127,18 +127,18 @@ class Postprocessor(object):
 			for i in range(len(data)):
 				pa = data[i]['pumpAmplitude']
 				sa = data[i]['stedAmplitude']
-				rex = data[i]['reXpos']
+				laserXpos = data[i]['laserXpos']
 				esa = data[i]['excitedStateAverage']
-				self.data[pa][sa][0].append(rex)
+				self.data[pa][sa][0].append(laserXpos)
 				self.data[pa][sa][1].append(esa)
 
 		# sort by reXpos
 		for pak in self.data.keys():
 			for sak in self.data[pak].keys():
-				rex = np.array(self.data[pak][sak][0])
+				laserXpos = np.array(self.data[pak][sak][0])
 				esa = np.array(self.data[pak][sak][1])
-				inds = rex.argsort()
-				self.data[pak][sak][0] = rex[inds]
+				inds = laserXpos.argsort()
+				self.data[pak][sak][0] = laserXpos[inds]
 				self.data[pak][sak][1] = esa[inds]
 
 

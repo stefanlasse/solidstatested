@@ -29,7 +29,7 @@ class SolidStateStedSimulator(Process):
 		self.resultContainer = resultContainer
 
 	#--------------------------------------------------------------------------
-	def setupSimulation(self, REx, REy, ETx, ETy, pumpAmpl=0.05, stedAmpl=0.5, cs=[1,1,1,1,1], eTR=25E-9):
+	def setupSimulation(self, REx, REy, ETx, ETy, pumpAmpl=0.05, stedAmpl=0.5, laserXpos=0.0, laserYpos=0.0, cs=[1,1,1,1,1], eTR=25E-9):
 		"""
 		Configures all necessary parameters and creates the objects needed for the simulator.
 
@@ -59,6 +59,8 @@ class SolidStateStedSimulator(Process):
 		self.electronTrapYCoordinates = np.array(ETy)
 		self.pumpAmplitude = pumpAmpl
 		self.stedAmplitude = stedAmpl
+		self.laserXpos = laserXpos
+		self.laserYpos = laserYpos
 		self.crossSections = cs
 		self.electronTravelRange = eTR
 
@@ -68,8 +70,8 @@ class SolidStateStedSimulator(Process):
 		#self.vb = ValenceBand()
 
 		# set up pump and sted beam
-		self.pumpBeam = PumpBeam(x=0.0, y=0.0, amplitude=self.pumpAmplitude, wavelength=470E-9, numAperture=1.3)
-		self.stedBeam = StedBeam(x=0.0, y=0.0, amplitude=self.stedAmplitude, wavelength=600E-9, numAperture=1.3)
+		self.pumpBeam = PumpBeam(x=self.laserXpos, y=self.laserYpos, amplitude=self.pumpAmplitude, wavelength=470E-9, numAperture=1.3)
+		self.stedBeam = StedBeam(x=self.laserXpos, y=self.laserYpos, amplitude=self.stedAmplitude, wavelength=600E-9, numAperture=1.3)
 
 		# set up electronic systems
 		self.electronSystems = ElectronicSystem(RExPos   = self.rareEarthXCoordinates,
@@ -201,6 +203,8 @@ class SolidStateStedSimulator(Process):
 		result = dict()
 		result["reXpos"] = self.rareEarthXCoordinates
 		result["reYpos"] = self.rareEarthYCoordinates
+		result["laserXpos"] = self.laserXpos
+		result["laserYpos"] = self.laserYpos
 		result["groundStateAverage"] = self.groundStateAverage
 		result["excitedStateAverage"] = self.excitedStateAverage
 		result["rePopulationEvolution_time"] = self.evolutionRecoders[0]._t
