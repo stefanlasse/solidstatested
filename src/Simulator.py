@@ -94,6 +94,7 @@ class SolidStateStedSimulator(Process):
 			evRec = EvolutionRecorder('REpos=[%.2g, %.2g, %.2g]'%(rePos[0], rePos[1], rePos[2]), 'sim step', 'N')
 			self.evolutionRecoders.append(evRec)
 
+		self.electronSystems.createNeighbours(self.electronTravelRange)
 		np.random.seed()
 
 	#--------------------------------------------------------------------------
@@ -132,7 +133,8 @@ class SolidStateStedSimulator(Process):
 
 					if result == 1:
 						# RE got ionized, electron is absorbed by CB, now recombine to somewhere
-						self.handleRecombination(self.electronSystems.getPosition(index))
+						#self.handleRecombination(self.electronSystems.getPosition(index))
+						self.handleRecombination(index)
 
 					elif result == 2:
 						# RE got repumped, catch electron from VB
@@ -145,7 +147,8 @@ class SolidStateStedSimulator(Process):
 
 					if result == 1:
 						# ET got ionized, add electron to CB and recombine to somewhere
-						self.handleRecombination(self.electronSystems.getPosition(index))
+						#self.handleRecombination(self.electronSystems.getPosition(index))
+						self.handleRecombination(index)
 
 			# record ground/excited state evolution (internal)
 			self.electronSystems.recordREstates()
@@ -170,15 +173,19 @@ class SolidStateStedSimulator(Process):
 		# now go through the conduction band's collected electrons and
 		# find the ones which can recombine to either an electron trap
 		# or to a rare earth.
-		self.possibleRecombinationSlots = self.electronSystems.potentialRecombinationIndices
-		np.random.shuffle(self.possibleRecombinationSlots)
+		self.possibleRecombinationSlots = np.intersect1d(self.electronSystems.potentialRecombinationIndices,
+														 self.electronSystems.getNeighbours(electronPosition))
 
-		for esIndex in self.possibleRecombinationSlots:
-			esPosition = self.electronSystems.getPosition(esIndex)
+		self.electronSystems.recombine(np.random.choice(self.possibleRecombinationSlots))
 
-			if np.linalg.norm(esPosition - electronPosition) <= self.electronTravelRange:
-				self.electronSystems.recombine(esIndex)
-				break
+
+
+		#for esIndex in self.possibleRecombinationSlots:
+		#	esPosition = self.electronSystems.getPosition(esIndex)
+
+		#	if np.linalg.norm(esPosition - electronPosition) <= self.electronTravelRange:
+		#		self.electronSystems.recombine(esIndex)
+		#		break
 
 	#--------------------------------------------------------------------------
 	def recordElectronTrapPopulationDistribution(self, distribution):

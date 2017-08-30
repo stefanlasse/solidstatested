@@ -1,4 +1,5 @@
 
+import timeit
 import numpy as np
 
 #==============================================================================
@@ -149,6 +150,27 @@ class ElectronicSystem(object):
 		self.electronicSystem = np.vstack((self.electronTraps, self.rareEarths))
 
 		self.resetRareEarthEvolutionCounters()
+
+	#--------------------------------------------------------------------------
+	def createNeighbours(self, electronTravelRange):
+		"""creates a collection of neighbour-indices to a certain index
+		depending on the given electron travel range."""
+		self.neighbours = dict()
+		for index in range(self.N):
+			indexNeighbours = list()
+			pos1 = self.getPosition(index)
+			for i in range(self.N):
+				pos2 = self.getPosition(i)
+				dist = np.linalg.norm(pos1 - pos2)
+				if dist <= electronTravelRange:
+					indexNeighbours.append(i)
+			self.neighbours[index] = np.array(indexNeighbours)
+
+		print self.neighbours
+
+	#--------------------------------------------------------------------------
+	def getNeighbours(self, index):
+		return self.neighbours[index]
 
 	#--------------------------------------------------------------------------
 	@property
