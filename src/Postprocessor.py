@@ -150,7 +150,7 @@ class Postprocessor(object):
 
 		for sa in sorted(self.data[pa].keys()):	# ensure starting with lowest stedAmplitude
 			x = self.data[pa][sa][0]
-			y = self.data[pa][sa][1]
+			y = self.data[pa][sa][1]/np.max(self.data[pa][sa][1])
 
 			lorentzian = LorentzianModel(prefix='l1_')
 			constant   = ConstantModel(prefix='const_')

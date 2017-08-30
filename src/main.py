@@ -22,14 +22,14 @@ electronTrapXposition = np.linspace(-5E-7, 5E-7, numberElectronTraps)
 electronTrapYposition = np.linspace(-5E-7, 5E-7, numberElectronTraps)
 
 pumpAmplitude		  = np.linspace(0.05, 0.1, 1)
-stedAmplitude		  = np.linspace(1.0, 20.0, 10)
+stedAmplitude		  = np.linspace(1.0, 20.0, 20)
 
 					  #  gammaRE, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE
 crossSections 		  = [  0.2,      2.0,       10.0,         5.0,        1.0]
 
 electronTravelRange   = 101E-9
 
-rootPath = "D:/STED_sim/test"
+rootPath = "D:/STED_sim/test/"
 path = "%sgamma_%.2f_sigPumpRE_%.2f_sigIonizeRE_%.2f_sigRepumpRE_%.2f_sigStedRE_%.2f/"%(rootPath,			\
 																						crossSections[0],	\
 																						crossSections[1],	\
