@@ -96,11 +96,12 @@ class SolidStateStedSimulator(Process):
 			evRec = EvolutionRecorder('REpos=[%.2g, %.2g, %.2g]'%(rePos[0], rePos[1], rePos[2]), 'sim step', 'N')
 			self.evolutionRecoders.append(evRec)
 
-		self.electronSystems.createNeighbours(self.electronTravelRange)
 		np.random.seed()
 
 	#--------------------------------------------------------------------------
 	def run(self):
+		self.electronSystems.createNeighbours(self.electronTravelRange)
+
 		rareEarthIndices = self.electronSystems.rareEarthIndices
 		electronTrapIndices = self.electronSystems.electronTrapIndices
 

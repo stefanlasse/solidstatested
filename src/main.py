@@ -10,7 +10,7 @@ from PointSpreadFunction import PointSpreadFunction
 #--------------------------------------------------------------------------
 # configuration part
 #--------------------------------------------------------------------------
-numberSimulationSteps = 1E5
+numberSimulationSteps = 5E5
 numberElectronTraps   = 50
 
 laserXposition = np.linspace(-2.5E-7, 2.5E-7, 63)
