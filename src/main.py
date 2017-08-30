@@ -10,10 +10,10 @@ from PointSpreadFunction import PointSpreadFunction
 #--------------------------------------------------------------------------
 # configuration part
 #--------------------------------------------------------------------------
-numberSimulationSteps = 1E6
+numberSimulationSteps = 1E5
 numberElectronTraps   = 50
 
-laserXposition = np.linspace(-2.5E-7, 2.5E-7, 1)
+laserXposition = np.linspace(-2.5E-7, 2.5E-7, 63)
 laserYposition = np.zeros(laserXposition.size)
 
 rareEarthCoordinates = np.array([0.0, 0.0])
@@ -22,10 +22,10 @@ electronTrapXposition = np.linspace(-5E-7, 5E-7, numberElectronTraps)
 electronTrapYposition = np.linspace(-5E-7, 5E-7, numberElectronTraps)
 
 pumpAmplitude		  = np.linspace(0.05, 0.1, 1)
-stedAmplitude		  = np.linspace(1.0, 20.0, 1)
+stedAmplitude		  = np.linspace(1.0, 20.0, 10)
 
 					  #  gammaRE, sigPumpRE, sigIonizeRE, sigRepumpRE, sigStedRE
-crossSections 		  = [  0.2,      2.0,       7.0,         5.0,        3.0]
+crossSections 		  = [  0.2,      2.0,       10.0,         5.0,        1.0]
 
 electronTravelRange   = 101E-9
 

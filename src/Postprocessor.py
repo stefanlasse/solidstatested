@@ -132,7 +132,7 @@ class Postprocessor(object):
 				self.data[pa][sa][0].append(laserXpos)
 				self.data[pa][sa][1].append(esa)
 
-		# sort by reXpos
+		# sort by laserXpos
 		for pak in self.data.keys():
 			for sak in self.data[pak].keys():
 				laserXpos = np.array(self.data[pak][sak][0])
