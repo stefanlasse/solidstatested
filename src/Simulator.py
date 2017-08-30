@@ -171,23 +171,20 @@ class SolidStateStedSimulator(Process):
 		self.finalize()
 
 	#--------------------------------------------------------------------------
-	def handleRecombination(self, electronPosition):
+	def handleRecombination(self, index):
 		# now go through the conduction band's collected electrons and
 		# find the ones which can recombine to either an electron trap
 		# or to a rare earth.
 		self.possibleRecombinationSlots = np.intersect1d(self.electronSystems.potentialRecombinationIndices,
-														 self.electronSystems.getNeighbours(electronPosition))
+														 self.electronSystems.getNeighbours(index))
+
+		if not self.electronSystems.isRareEarth(index):
+			probDecayToValenceBand = 1.0/(self.possibleRecombinationSlots.size + 1) # + 1 for the VB, to which the electron can decay.
+			randomNumber = np.random.rand()
+			if randomNumber <= probDecayToValenceBand:
+				return
 
 		self.electronSystems.recombine(np.random.choice(self.possibleRecombinationSlots))
-
-
-
-		#for esIndex in self.possibleRecombinationSlots:
-		#	esPosition = self.electronSystems.getPosition(esIndex)
-
-		#	if np.linalg.norm(esPosition - electronPosition) <= self.electronTravelRange:
-		#		self.electronSystems.recombine(esIndex)
-		#		break
 
 	#--------------------------------------------------------------------------
 	def recordElectronTrapPopulationDistribution(self, distribution):
