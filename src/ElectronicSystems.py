@@ -173,6 +173,10 @@ class ElectronicSystem(object):
 		return self.neighbours[index]
 
 	#--------------------------------------------------------------------------
+	def getFreeNeighbours(self, index):
+		return np.intersect1d(self.potentialRecombinationIndices, self.getNeighbours(index))
+
+	#--------------------------------------------------------------------------
 	@property
 	def x(self):
 		"""Returns an array of floats, which represents the x coordinates of
@@ -358,13 +362,12 @@ class ElectronicSystem(object):
 		"""Populates an electronic system with index idx if it currently is not
 		populated. If this system is a rare earth, its state is set to excited
 		state. Here, the electron comes from the condiction band."""
-		if not self.isPopulated(idx):
-			self.populate(idx)
+		self.populate(idx)
 
-			if self.isRareEarth(idx):
-				self.electronicSystem[idx][self.idx['reState']] = self._states['excited']
+		if self.isRareEarth(idx):
+			self.electronicSystem[idx][self.idx['reState']] = self._states['excited']
 
-			return 0
+		return 0
 
 	#--------------------------------------------------------------------------
 	def actOnElectronTrap(self, idx, probability):
